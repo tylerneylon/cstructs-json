@@ -3,12 +3,15 @@
 
 #include "cjson.h"
 
+// TODO TEMP
+#include <ctype.h>
+
 #include <stdio.h>
 #include <string.h>
 
 // Steps:
 // 1. [x] Add error-reporting for arrays.
-// 2. [ ] Parse objects.
+// 2. [x] Parse objects.
 // 3. [ ] Parse literals (false/true/null).
 // 4. [ ] Parse numbers.
 // 5. [ ] Make items self-cleaning (recursively delete all that's needed on delete).
@@ -79,8 +82,11 @@ Item parse_array(char *json_str) {
 // character of the parsed value.
 char *parse_value(Item *item, char *input, char *input_start) {
 
+  //printf("parse_value called at index %ld\n", input - input_start);
+
   // Parse a string.
   if (*input == '"') {
+    //printf("starting string at index %ld\n", input - input_start);
     input++;
     item->type = item_string;
     CArray char_array = CArrayNew(16, sizeof(char));
@@ -96,6 +102,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse an array.
   if (*input == '[') {
+    //printf("starting array at index %ld\n", input - input_start);
     next_token(input);
 
     CArray array = CArrayNew(8, sizeof(Item));
@@ -128,6 +135,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse an object.
   if (*input == '{') {
+    //printf("starting object at index %ld\n", input - input_start);
     next_token(input);
     CMap obj = CMapNew(str_hash, str_eq);
     obj->keyReleaser = free;
@@ -164,6 +172,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
       // Parse the separating colon.
       next_token(input);
+      //printf("Expecting a colon at index %ld\n", input - input_start);
       if (*input != ':') {
         item->type = item_error;
         int index = input - input_start;
@@ -175,6 +184,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
       // Parse the value of this key.
       next_token(input);
       Item *subitem = (Item *)malloc(sizeof(Item));
+      input = parse_value(subitem, input, input_start);
       if (input == NULL) {
         *item = *subitem;
         free(subitem);
@@ -186,6 +196,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
       CMapSet(obj, key.value.string, subitem);
 
       next_token(input);
+      //printf("At end of obj parse cycle, index=%ld; char=0x%02X (%c)\n", input - input_start, *input, isprint(*input) ? *input : '?');
     }
     return input;
   }
