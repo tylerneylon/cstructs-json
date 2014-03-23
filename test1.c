@@ -41,7 +41,7 @@ void print_item(Item item, int indent) {
 }
 
 void parse_str(char *str) {
-  printf("String to parse is:\n%s\n", str);
+  printf("\nString to parse is:\n%s\n", str);
   Item item = from_json(str);
 
   printf("Parsed result has type %s\n", item_type_names[item.type]);
@@ -57,5 +57,6 @@ int main() {
   // TODO After all value types can be parsed, check error-reporting on an invalid first char.
   //      e.g. "[,]" or "gru".
 
+  printf("\n");
   return 0;
 }

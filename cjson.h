@@ -30,5 +30,17 @@ typedef struct {
   ItemValue value;
 } Item;
 
+// Main functions to parse or jsonify.
+
 Item from_json(char *json_str);
 char *to_json(Item item);
+
+// Helper function to deallocate items.
+// release_item is designed for CArray; free_item is designed for CMap.
+// They accept a void * type to be a valid releaser for a CMap/CArray.
+
+// This does NOT free the item itself; only its contents, recursively.
+void release_item(void *item);
+
+// Frees both the contents and the item itself; does strictly more than release_item.
+void free_item(void *item);
