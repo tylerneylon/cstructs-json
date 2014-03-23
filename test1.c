@@ -19,6 +19,7 @@ void print_item(Item item, int indent) {
   for (int i = 0; i < indent; ++i) printf(" ");
   switch (item.type) {
     case item_string:
+    case item_error:
       printf("%s\n", item.value.string);
       break;
     case item_array:
@@ -51,6 +52,10 @@ int main() {
   char *json_str = "\"hello\"";
   parse_str("\"hello\"");
   parse_str(" [ \"abc\", \n \"def\" ] ");
+  parse_str("[\"abc\" \"def\"]");
+
+  // TODO After all value types can be parsed, check error-reporting on an invalid first char.
+  //      e.g. "[,]" or "gru".
 
   return 0;
 }
