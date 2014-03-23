@@ -74,6 +74,9 @@ void print_item(Item item, int indent, int indent_first_line) {
     case item_null:
       printf("null\n");
       break;
+    case item_number:
+      printf("%g\n", item.value.number);
+      break;
 
     default:
       printf("(printing this type is not yet implemented)\n");
@@ -113,6 +116,25 @@ int main() {
   parse_str("false");
   parse_str("null");
   parse_str("[true, \"hi\", {\"apple\": true, \"banana\": false, \"robot\": [null]}]");
+
+  // Test numbers.
+  parse_str("0");
+  parse_str("1");
+  parse_str("12");
+  parse_str("3.14");
+  parse_str("-0.55");
+  parse_str("1e2");
+  parse_str("1E-1");
+  parse_str("2e0");
+  parse_str("-2E+20");
+  parse_str("[1, 2, 3.14, 2e2, {\"hi\": -100}]");
+
+  // Number error cases.
+  parse_str("-");
+  parse_str("1e");
+  parse_str("01");
+  parse_str("+3");
+  parse_str("0e-");
 
   // TODO After all value types can be parsed, check error-reporting on an invalid first char.
   //      e.g. "[,]" or "gru".

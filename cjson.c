@@ -3,9 +3,8 @@
 
 #include "cjson.h"
 
-// TODO TEMP
 #include <ctype.h>
-
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -13,7 +12,7 @@
 // 1. [x] Add error-reporting for arrays.
 // 2. [x] Parse objects.
 // 3. [x] Parse literals (false/true/null).
-// 4. [ ] Parse numbers.
+// 4. [x] Parse numbers.
 // 5. [ ] Make items self-cleaning (recursively delete all that's needed on delete).
 
 
@@ -77,22 +76,115 @@ Item parse_array(char *json_str) {
   return (Item) {0, 0};
 }
 
+char *parse_exp(Item *item, char *input, char *input_start) {
+  printf("%s\n", __func__);
+  if (*input == 'e' || *input == 'E') {
+    input++;
+    printf("Just after e/E, I'm looking at character 0x%02X (%c)\n", *input, *input);
+    if (*input == '\0') {
+      printf("Error case.\n");
+      item->type = item_error;
+      int index = input - input_start;
+      asprintf(&item->value.string, "Error: expected exponent at index %d", index);
+      return NULL;
+    }
+    double exp = 0.0;
+    double sign = (*input == '-' ? -1.0 : 1.0);
+    printf("sign set to %f\n", sign);
+    if (*input == '-' || *input == '+') input++;
+    if (!isdigit(*input)) {
+      item->type = item_error;
+      int index = input - input_start;
+      asprintf(&item->value.string, "Error: expected digit at index %d", index);
+      return NULL;
+    }
+    do {
+      exp *= 10.0;
+      exp += (*input - '0');
+      printf("exp is at %f\n", exp);
+      input++;
+    } while (isdigit(*input));
+    item->value.number = item->value.number * pow(10.0, exp * sign);
+    printf("End of %s; *input=%c\n", __func__, *input);
+  }
+  return input - 1;  // Leave the number pointing at its last character.
+}
+
+char *parse_frac(Item *item, char *input, char *input_start) {
+  printf("%s\n", __func__);
+  if (*input == '.') {
+    input++;
+    double w = 0.1;
+    if (!isdigit(*input)) {
+      item->type = item_error;
+      int index = input - input_start;
+      asprintf(&item->value.string, "Error: expected digit after . at index %d", index);
+      return NULL;
+    }
+    do {
+      item->value.number += w * (*input - '0');
+      printf("At digit %c, just added quantity %f\n", *input, (w * (*input - '0')));
+      w *= 0.1;
+      input++;
+    } while (isdigit(*input));
+  }
+  return parse_exp(item, input, input_start);
+}
+
 // Assumes there's no leading whitespace.
 // At the end, the input points to the last
 // character of the parsed value.
 char *parse_value(Item *item, char *input, char *input_start) {
 
-  //printf("parse_value called at index %ld\n", input - input_start);
+  printf("parse_value called at index %ld\n", input - input_start);
+
+  // Parse a number.
+  int sign = 1;
+  if (*input == '-') {
+    sign = -1;
+    input++;
+  }
+
+  if (isdigit(*input)) {
+    printf("starting number at index %ld (excludes leading - if there is one)\n", input - input_start);
+    item->type = item_number;
+    item->value.number = 0.0;
+
+    if (*input != '0') {
+      do {
+        item->value.number *= 10.0;
+        item->value.number += (*input - '0');
+        input++;
+      } while (isdigit(*input));
+    } else {
+      input++;
+    }
+    input = parse_frac(item, input, input_start);
+    if (input) {
+      item->value.number *= sign;
+      printf("About to leave parse_value after parsing a number with input set to %c\n", *input);
+    }
+    return input;
+
+  } else if (sign == -1) {
+
+    // A '-' without a number following it.
+    item->type = item_error;
+    int index = input - input_start;
+    asprintf(&item->value.string, "Error: expected digit at index %d", index);
+    return NULL;
+  }
 
   // Parse a string.
   if (*input == '"') {
-    //printf("starting string at index %ld\n", input - input_start);
+    printf("starting string at index %ld\n", input - input_start);
     input++;
     item->type = item_string;
     CArray char_array = CArrayNew(16, sizeof(char));
     while (*input != '"') {
       parse_string_unit(char_array, input);
     }
+    *(char *)CArrayNewElement(char_array) = '\0';  // Terminating null.
 
     item->value.string = char_array->elements;
     free(char_array);  // Leaves the actual char array in memory.
@@ -102,7 +194,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse an array.
   if (*input == '[') {
-    //printf("starting array at index %ld\n", input - input_start);
+    printf("starting array at index %ld\n", input - input_start);
     next_token(input);
 
     CArray array = CArrayNew(8, sizeof(Item));
@@ -135,7 +227,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse an object.
   if (*input == '{') {
-    //printf("starting object at index %ld\n", input - input_start);
+    printf("starting object at index %ld\n", input - input_start);
     next_token(input);
     CMap obj = CMapNew(str_hash, str_eq);
     obj->keyReleaser = free;
