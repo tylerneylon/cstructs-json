@@ -21,7 +21,8 @@ typedef enum {
   item_array,
   item_true,
   item_false,
-  item_null
+  item_null,
+  item_error
 } ItemType;
 
 typedef struct {

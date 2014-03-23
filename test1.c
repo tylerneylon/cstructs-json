@@ -11,7 +11,8 @@ static char *item_type_names[] = {
   "item_array",
   "item_true",
   "item_false",
-  "item_null"
+  "item_null",
+  "item_error"
 };
 
 void print_item(Item item, int indent) {
