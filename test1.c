@@ -56,15 +56,25 @@ void print_item(Item item, int indent, int indent_first_line) {
         }
         printf("{\n");
         int indent_first_line = false;
-        indent_by(indent);
         CMapFor(pair, item.value.object) {
           indent_by(indent + 2);
           printf("%s : ", (char *)pair->key);
           print_item(*(Item *)pair->value, indent + 2, indent_first_line);
         }
+        indent_by(indent);
         printf("}\n");
       }
       break;
+    case item_true:
+      printf("true\n");
+      break;
+    case item_false:
+      printf("false\n");
+      break;
+    case item_null:
+      printf("null\n");
+      break;
+
     default:
       printf("(printing this type is not yet implemented)\n");
       break;
@@ -84,12 +94,25 @@ void parse_str(char *str) {
 
 int main() {
   char *json_str = "\"hello\"";
+
+  // Test strings.
   parse_str("\"hello\"");
+
+  // Test arrays.
   parse_str(" [ \"abc\", \n \"def\" ] ");
   parse_str("[\"abc\" \"def\"]");
+
+  // Test objects.
   parse_str("{\"a\": \"def\"}");
   parse_str("{ \"str\" : \"ing\" , \"arr\":[\"a\", []]}");
   parse_str("{ \"str\" : \"ing\" , \"arr\":[\"a\", []}");
+
+  // Test literals.
+  parse_str("true");
+  parse_str("troo");
+  parse_str("false");
+  parse_str("null");
+  parse_str("[true, \"hi\", {\"apple\": true, \"banana\": false, \"robot\": [null]}]");
 
   // TODO After all value types can be parsed, check error-reporting on an invalid first char.
   //      e.g. "[,]" or "gru".

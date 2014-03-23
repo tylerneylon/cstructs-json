@@ -12,7 +12,7 @@
 // Steps:
 // 1. [x] Add error-reporting for arrays.
 // 2. [x] Parse objects.
-// 3. [ ] Parse literals (false/true/null).
+// 3. [x] Parse literals (false/true/null).
 // 4. [ ] Parse numbers.
 // 5. [ ] Make items self-cleaning (recursively delete all that's needed on delete).
 
@@ -199,6 +199,26 @@ char *parse_value(Item *item, char *input, char *input_start) {
       //printf("At end of obj parse cycle, index=%ld; char=0x%02X (%c)\n", input - input_start, *input, isprint(*input) ? *input : '?');
     }
     return input;
+  }
+
+  // TODO Parse numbers here or earlier, since I guess they may be more likely.
+
+  // Parse a literal: true, false, or null.
+  char *literals[3] = {"false", "true", "null"};
+  size_t lit_len[3] = {5, 4, 4};
+  ItemType types[3] = {item_false, item_true, item_null};
+
+  for (int i = 0; i < 3; ++i) {
+    if (*input != literals[i][0]) continue;
+    if (strncmp(input, literals[i], lit_len[i]) != 0) {
+      item->type = item_error;
+      int index = input - input_start;
+      asprintf(&item->value.string, "Error: expected '%s' at index %d", literals[i], index);
+      return NULL;
+    }
+    item->type = types[i];
+    item->value.bool = (i < 2) ? i : 0;  // The 0 literal is for the null case.
+    return input + (lit_len[i] - 1);
   }
 
   // TODO Implement the rest.
