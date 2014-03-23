@@ -3,8 +3,16 @@
 
 #include "cjson.h"
 
+#include <string.h>
 
 // Internal functions.
+
+// Using macros is a hacky-but-not-insane (in my opinion)
+// way to ensure these 'functions' are inlined.
+
+#define skip_whitespace(input) \
+  input += strspn(input, " \t\r\n" );
+
 
 #define parse_string_unit(char_array, input) \
   char c = *input++; \
@@ -28,7 +36,7 @@
         break; \
     } \
   } \
-  *(char *)CArrayNewElement(char_array) = c; \
+  *(char *)CArrayNewElement(char_array) = c;
 
 char *parse_string_unit_old(CArray output, char *input) {
   char c = *input++;
@@ -66,11 +74,14 @@ Item parse_array(char *json_str) {
 
 char *parse_value(Item *item, char *input) {
 
+  // Skip any leading whitespace.
+  skip_whitespace(input);
+
   // Handle a string.
   if (*input == '"') {
+    input++;
     item->type = item_string;
     CArray char_array = CArrayNew(16, sizeof(char));
-    input++;
     while (*input != '"') {
       parse_string_unit(char_array, input);
       //input = parse_string_unit(chars, input);
@@ -80,6 +91,26 @@ char *parse_value(Item *item, char *input) {
     item->value.string = char_array->elements;
     free(char_array);  // Leaves the actual char array in memory.
 
+    return input;
+  }
+
+  if (*input == '[') {
+    input++;
+    skip_whitespace(input);
+    item->type = item_array;
+    CArray array = CArrayNew(8, sizeof(Item));
+    while (*input != ']') {
+      if (array->count) {
+        if (*input != ',') {
+          // TODO report a parse error
+        }
+        input++;
+        skip_whitespace(input);
+      }
+      input = parse_value((Item *)CArrayNewElement(array), input);
+      skip_whitespace(input);
+    }
+    item->value.array = array;
     return input;
   }
 
