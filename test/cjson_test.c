@@ -273,21 +273,47 @@ int test_parse_arrays() {
   return test_success;
 }
 
-/*
 int test_parse_objects() {
-  StringAndItem test_data[] = {
-    // Non-error cases.
-    {"true", {.type = item_true}},
-    {"false", {.type = item_false}},
-    {"null", {.type = item_null}},
 
-    // Error cases.
-    {"troo", {.type = item_error}}
+  Item item, *subitem;
+
+  // Non-error cases.
+  parse_to_item("{\"a\": \"def\"}");
+  test_that(item.type == item_object);
+  CMapFor(pair, item.value.object) {
+    test_that(strcmp((char *)pair->key, "a") == 0);
+    subitem = (Item *)pair->value;
+    test_that(subitem->type == item_string);
+    test_that(strcmp((char *)subitem->value.string, "def") == 0);
+  }
+
+  parse_to_item("{ \"str\" : \"ing\" , \"arr\":[\"a\", []]}");
+  test_that(item.type == item_object);
+  test_that(item.value.object->count == 2);
+  test_that(CMapFind(item.value.object, "str") != NULL);
+  test_that(CMapFind(item.value.object, "arr") != NULL);
+  test_that(CMapFind(item.value.object, "not-a-key") == NULL);
+
+  subitem = (Item *)(CMapFind(item.value.object, "str")->value);
+  test_that(subitem->type == item_string);
+  test_that(strcmp(subitem->value.string, "ing") == 0);
+
+  parse_to_item("{}");
+  test_that(item.type == item_object);
+
+  // Error cases.
+  char *error_strings[] = {
+    "{", "{, }", "{1: 2}", "{\"a\":}", "{\"b\": 34 \"c\": 35}", "{\"a\" : 1,}", "{\"a\"}"
   };
-  for (int i = 0; i < array_size(test_data); ++i) check_parse(test_data[i]);
+  for (int i = 0; i < array_size(error_strings); ++i) {
+    parse_to_item(error_strings[i]);
+    test_that(item.type == item_error);
+  }
+
   return test_success;
 }
 
+/*
 int test_parse_mixed() {
   StringAndItem test_data[] = {
     // Non-error cases.
@@ -307,7 +333,7 @@ int main(int argc, char **argv) {
   start_all_tests(argv[0]);
   run_tests(
     test_parse_number, test_parse_string, test_parse_literals,
-    test_parse_arrays
+    test_parse_arrays, test_parse_objects
   );
   return end_all_tests();
 }
