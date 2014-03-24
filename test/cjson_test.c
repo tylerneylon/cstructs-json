@@ -313,27 +313,32 @@ int test_parse_objects() {
   return test_success;
 }
 
-/*
 int test_parse_mixed() {
-  StringAndItem test_data[] = {
-    // Non-error cases.
-    {"true", {.type = item_true}},
-    {"false", {.type = item_false}},
-    {"null", {.type = item_null}},
 
-    // Error cases.
-    {"troo", {.type = item_error}}
-  };
-  for (int i = 0; i < array_size(test_data); ++i) check_parse(test_data[i]);
+  Item item, *subitem;
+
+  parse_to_item("[true, \"hi\", {\"apple\": true, \"banana\": false, \"robot\": [null]}]");
+  test_that(item.type == item_array);
+  test_that(item.value.array->count == 3);
+  subitem = (Item *)CArrayElement(item.value.array, 2);
+  test_that(subitem->type == item_object);
+  test_that(subitem->value.object->count == 3);
+
+  parse_to_item("{\"a\": [], \"b\": {}, \"c\": {\"d\": \"e\"}}");
+  test_that(item.type == item_object);
+  test_that(item.value.object->count == 3);
+
+  parse_to_item("{\"abc\": [ 1, 2, {\"defg\": 01}]}");  // 01 is not a valid number in json.
+  test_that(item.type == item_error);
+
   return test_success;
 }
-*/
 
 int main(int argc, char **argv) {
   start_all_tests(argv[0]);
   run_tests(
     test_parse_number, test_parse_string, test_parse_literals,
-    test_parse_arrays, test_parse_objects
+    test_parse_arrays, test_parse_objects, test_parse_mixed
   );
   return end_all_tests();
 }
