@@ -8,14 +8,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// Steps:
-// 1. [x] Add error-reporting for arrays.
-// 2. [x] Parse objects.
-// 3. [x] Parse literals (false/true/null).
-// 4. [x] Parse numbers.
-// 5. [ ] Make items self-cleaning (recursively delete all that's needed on delete).
-
-
 
 // Internal functions.
 
