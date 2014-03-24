@@ -5,10 +5,14 @@
 
 #include "cjson.h"
 
+#include "ctest.h"
 #include <stdio.h>
+#include <string.h>
 
 #define true 1
 #define false 0
+
+#define array_size(x) (sizeof(x) / sizeof(x[0]))
 
 static char *item_type_names[] = {
   "item_string",
@@ -73,7 +77,7 @@ void parse_str(char *str) {
   print_item(item, indent, indent_first_line);
 }
 
-int main() {
+int old_main() {
   char *json_str = "\"hello\"";
 
   // Test strings.
@@ -124,4 +128,71 @@ int main() {
 
   printf("\n");
   return 0;
+}
+
+typedef struct {
+  char *str;
+  Item item;
+} StringAndItem;
+
+static void check_parse(StringAndItem str_and_item) {
+  test_printf("About to parse:\n%s\n", str_and_item.str);
+  Item parsed_item = from_json(str_and_item.str);
+  test_printf("Result has type %s\n", item_type_names[parsed_item.type]);
+  Item expected_item = str_and_item.item;
+  test_that(parsed_item.type == expected_item.type);
+
+  // We don't check error strings here.
+  if (parsed_item.type == item_error) return;
+
+  // TODO test_print out a nice-looking version of the parsed result
+  printf("Result:\n");
+  print_item(parsed_item, 0 /* indent */, false /* indent first line */);
+
+  // We'll only get here if the item types match.
+  ItemValue parsed_val = parsed_item.value;
+  ItemValue expected_val = expected_item.value;
+  switch (expected_item.type) {
+    case item_error:
+    case item_string:
+      test_that(strcmp(parsed_val.string, expected_val.string) == 0);
+      break;
+    case item_number:
+      test_that(parsed_val.number == expected_val.number);
+      break;
+    default:
+      test_failed("unknown item type");
+  }
+}
+
+int test_parse_number() {
+  StringAndItem test_data[] = {
+    // Non-error cases.
+    {"0", {.type = item_number, .value.number = 0.0}},
+    {"1", {.type = item_number, .value.number = 1}},
+    {"12", {.type = item_number, .value.number = 12}},
+    {"3.14", {.type = item_number, .value.number = 3.14}},
+    {"-0.55", {.type = item_number, .value.number = -0.55}},
+    {"1e2", {.type = item_number, .value.number = 1e2}},
+    {"1E-1", {.type = item_number, .value.number = 1E-1}},
+    {"2e0", {.type = item_number, .value.number = 2e0}},
+    {"-2E+20", {.type = item_number, .value.number = -2E+20}},
+
+    // Error cases.
+    {"-", {.type = item_error}},
+    {"1e", {.type = item_error}},
+    // {"01", {.type = item_error}},  // This is a weird case; if we allow tails, it's legit.
+    {"+3", {.type = item_error}},
+    {"0e-", {.type = item_error}}
+  };
+  for (int i = 0; i < array_size(test_data); ++i) check_parse(test_data[i]);
+  return test_success;
+}
+
+int main(int argc, char **argv) {
+  start_all_tests(argv[0]);
+  run_tests(
+    test_parse_number
+  );
+  return end_all_tests();
 }
