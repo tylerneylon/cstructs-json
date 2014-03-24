@@ -208,15 +208,16 @@ char *parse_value(Item *item, char *input, char *input_start) {
           item->type = item_error;
           int index = input - input_start;
           asprintf(&item->value.string, "Error: expected ']' or ',' at index %d", index);
+          CArrayDelete(array);
           return NULL;
-          // TODO clean up after ourselves
         }
         next_token(input);
       }
       Item *subitem = (Item *)CArrayNewElement(array);
       input = parse_value(subitem, input, input_start);
       if (input == NULL) {
-        *item = *subitem;  // TODO Clean up after ourselves.
+        *item = *subitem;
+        CArrayDelete(array);
         return NULL;
       }
       next_token(input);
@@ -293,8 +294,6 @@ char *parse_value(Item *item, char *input, char *input_start) {
     return input;
   }
 
-  // TODO Parse numbers here or earlier, since I guess they may be more likely.
-
   // Parse a literal: true, false, or null.
   char *literals[3] = {"false", "true", "null"};
   size_t lit_len[3] = {5, 4, 4};
@@ -313,8 +312,10 @@ char *parse_value(Item *item, char *input, char *input_start) {
     return input + (lit_len[i] - 1);
   }
 
-  // TODO Implement the rest.
-  //if (*input == '[') return parse_array(input);
+  // If we get here, the string is not well-formed.
+  item->type = item_error;
+  int index = input - input_start;
+  asprintf(&item->value.string, "Error: unexpected character (0x%02X) at index %d", *input, index);
   return NULL;
 }
 
@@ -335,7 +336,7 @@ char *to_json(Item item) {
 }
 
 void release_item(void *item_ptr) {
-  Item *item = (Item *)item;
+  Item *item = (Item *)item_ptr;
   switch (item->type) {
     case item_string:
     case item_error:
