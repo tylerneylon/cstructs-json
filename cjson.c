@@ -122,6 +122,7 @@ char *parse_frac(Item *item, char *input, char *input_start) {
 char *parse_value(Item *item, char *input, char *input_start) {
 
   printf("parse_value called at index %ld\n", input - input_start);
+  printf("tail is %s\n", input);
 
   // Parse a number.
   int sign = 1;
