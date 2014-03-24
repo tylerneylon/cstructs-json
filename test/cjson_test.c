@@ -139,8 +139,15 @@ static void check_parse(StringAndItem str_and_item) {
   test_printf("About to parse:\n%s\n", str_and_item.str);
   Item parsed_item = from_json(str_and_item.str);
   test_printf("Result has type %s\n", item_type_names[parsed_item.type]);
+
+  if (parsed_item.type == item_string) {
+    printf("result str length=%zd\n", strlen(parsed_item.value.string));
+  }
+
   Item expected_item = str_and_item.item;
   test_that(parsed_item.type == expected_item.type);
+
+  printf("%s:%d\n", __FILE__, __LINE__);
 
   // We don't check error strings here.
   if (parsed_item.type == item_error) return;
@@ -153,7 +160,6 @@ static void check_parse(StringAndItem str_and_item) {
   ItemValue parsed_val = parsed_item.value;
   ItemValue expected_val = expected_item.value;
   switch (expected_item.type) {
-    case item_error:
     case item_string:
       test_that(strcmp(parsed_val.string, expected_val.string) == 0);
       break;
@@ -161,7 +167,7 @@ static void check_parse(StringAndItem str_and_item) {
       test_that(parsed_val.number == expected_val.number);
       break;
     default:
-      test_failed("unknown item type");
+      test_failed("Unexpected item type");
   }
 }
 
@@ -189,10 +195,27 @@ int test_parse_number() {
   return test_success;
 }
 
+int test_parse_string() {
+  StringAndItem test_data[] = {
+    // Non-error cases.
+    {"\"abc\"", {.type = item_string, .value.string = "abc"}},
+    {"\"\\\\\"", {.type = item_string, .value.string = "\\"}},  // "\\" -> \
+    {"\"\\\"\"", {.type = item_string, .value.string = "\""}},   // "\"" -> "
+    {"\"\n\"", {.type = item_string, .value.string = "\n"}},
+    {"\"\"", {.type = item_string, .value.string = ""}},
+
+    // Error cases.
+    {"\"", {.type = item_error}},
+    {"\"\\\"", {.type = item_error}}
+  };
+  for (int i = 0; i < array_size(test_data); ++i) check_parse(test_data[i]);
+  return test_success;
+}
+
 int main(int argc, char **argv) {
   start_all_tests(argv[0]);
   run_tests(
-    test_parse_number
+    test_parse_number, test_parse_string
   );
   return end_all_tests();
 }

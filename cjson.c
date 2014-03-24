@@ -37,7 +37,7 @@ static int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   input += strspn(input, " \t\r\n");
 
 #define parse_string_unit(char_array, input) \
-  char c = *input++; \
+  c = *input++; \
   if (c == '\\') { \
     c = *input++; \
     switch (c) { \
@@ -60,14 +60,7 @@ static int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   } \
   *(char *)CArrayNewElement(char_array) = c;
 
-Item parse_string(char *json_str) {
-  return (Item) {0, 0};
-}
-
-Item parse_array(char *json_str) {
-  return (Item) {0, 0};
-}
-
+// TODO Rename this; sounds too much like "expression;" it's actually "exponent."
 char *parse_exp(Item *item, char *input, char *input_start) {
   printf("%s\n", __func__);
   if (*input == 'e' || *input == 'E') {
@@ -173,8 +166,16 @@ char *parse_value(Item *item, char *input, char *input_start) {
     input++;
     item->type = item_string;
     CArray char_array = CArrayNew(16, sizeof(char));
-    while (*input != '"') {
+    char c = 1;
+    while (c && *input != '"') {
       parse_string_unit(char_array, input);
+    }
+    if (c == '\0') {
+      // We hit the end of the string before we saw a closing quote.
+      item->type = item_error;
+      asprintf(&item->value.string, "Error: unclosed string");
+      CArrayDelete(char_array);
+      return NULL;
     }
     *(char *)CArrayNewElement(char_array) = '\0';  // Terminating null.
 
