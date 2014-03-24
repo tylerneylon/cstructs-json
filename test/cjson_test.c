@@ -149,8 +149,11 @@ static void check_parse(StringAndItem str_and_item) {
 
   printf("%s:%d\n", __FILE__, __LINE__);
 
-  // We don't check error strings here.
-  if (parsed_item.type == item_error) return;
+  // We don't check error strings or values of literals.
+  if (parsed_item.type == item_error || parsed_item.type == item_true ||
+      parsed_item.type == item_false || parsed_item.type == item_null) {
+    return;
+  }
 
   // TODO test_print out a nice-looking version of the parsed result
   printf("Result:\n");
@@ -212,10 +215,24 @@ int test_parse_string() {
   return test_success;
 }
 
+int test_parse_literals() {
+  StringAndItem test_data[] = {
+    // Non-error cases.
+    {"true", {.type = item_true}},
+    {"false", {.type = item_false}},
+    {"null", {.type = item_null}},
+
+    // Error cases.
+    {"troo", {.type = item_error}}
+  };
+  for (int i = 0; i < array_size(test_data); ++i) check_parse(test_data[i]);
+  return test_success;
+}
+
 int main(int argc, char **argv) {
   start_all_tests(argv[0]);
   run_tests(
-    test_parse_number, test_parse_string
+    test_parse_number, test_parse_string, test_parse_literals
   );
   return end_all_tests();
 }
