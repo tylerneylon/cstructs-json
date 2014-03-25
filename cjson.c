@@ -45,23 +45,10 @@ static int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   c = *input++; \
   if (c == '\\') { \
     c = *input++; \
-    switch (c) { \
-      case 'b': \
-        c = '\b'; \
-        break; \
-      case 'f': \
-        c = '\f'; \
-        break; \
-      case 'n': \
-        c = '\n'; \
-        break; \
-      case 'r': \
-        c = '\r'; \
-        break; \
-      case 't': \
-        c = '\t'; \
-        break; \
-    } \
+    static char *esc_input = "bfnrt"; \
+    static char *esc_output = "\b\f\n\r\t"; \
+    char *esc_ptr = strchr(esc_input, c); \
+    if (esc_ptr) c = esc_output[esc_ptr - esc_input]; \
   } \
   *(char *)CArrayNewElement(char_array) = c;
 
