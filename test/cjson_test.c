@@ -34,7 +34,7 @@ static inline void indent_by(int indent) {
   for (int i = 0; i < indent; ++i) printf(" ");
 }
 
-void print_item(Item item, int indent, int indent_first_line) {
+void print_item_(Item item, int indent, int indent_first_line) {
   if (indent_first_line) indent_by(indent);
   // This str_val is used for literals; it's also overwritten for strings and errors.
   char *str_val = (item.type == item_true ? "true" : (item.type == item_false ? "false" : "null"));
@@ -53,7 +53,7 @@ void print_item(Item item, int indent, int indent_first_line) {
     case item_array:
       printf(item.value.array->count ? "[\n" : "[");
       CArrayFor(Item *, subitem, item.value.array) {
-        print_item(*subitem, indent + 2, true /* indent first line */);
+        print_item_(*subitem, indent + 2, true /* indent first line */);
       }
       if (item.value.array->count) indent_by(indent);
       printf("]\n");
@@ -63,7 +63,7 @@ void print_item(Item item, int indent, int indent_first_line) {
       CMapFor(pair, item.value.object) {
         indent_by(indent + 2);
         printf("%s : ", (char *)pair->key);
-        print_item(*(Item *)pair->value, indent + 2, false /* indent first line */);
+        print_item_(*(Item *)pair->value, indent + 2, false /* indent first line */);
       }
       if (item.value.object->count) indent_by(indent);
       printf("}\n");
@@ -79,7 +79,7 @@ void parse_str(char *str) {
 
   int indent = 0;
   int indent_first_line = true;
-  print_item(item, indent, indent_first_line);
+  print_item_(item, indent, indent_first_line);
 }
 
 int old_main() {
@@ -163,7 +163,7 @@ static void check_parse(StringAndItem str_and_item) {
   if (parsed_item.type == item_string || parsed_item.type == item_number) {
     // TODO test_print out a nice-looking version of the parsed result
     printf("Result:\n");
-    print_item(parsed_item, 0 /* indent */, false /* indent first line */);
+    print_item_(parsed_item, 0 /* indent */, false /* indent first line */);
 
     if (parsed_item.type == item_string) {
       test_that(strcmp(parsed_item.value.string, expected_item.value.string) == 0);

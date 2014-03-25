@@ -5,13 +5,18 @@
 
 #include <ctype.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
 
 #define CArrayFreeButLeaveElements free
 
 // This compiles as nothing when DEBUG is not defined.
 #include "debug_hooks.c"
+
+#define true 1
+#define false 0
 
 
 // Internal functions.
@@ -284,8 +289,72 @@ char *parse_value(Item *item, char *input, char *input_start) {
   return NULL;
 }
 
+// Expects the input array to have elements of type char *.
+int array_printf(CArray array, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int return_value = vasprintf((char **)CArrayNewElement(array), fmt, args);
+  va_end(args);
+  return return_value;
+}
 
-// Private functions.
+// Expects the array to have elements of type char *. Caller owns the newly-allocated return val.
+char *array_join(CArray array) {
+  int total_len = 0;
+  CArrayFor(char **, str_ptr, array) total_len += strlen(*str_ptr);
+  char *str = malloc(total_len + 1);  // +1 for the final null.
+  char *tail = str;
+  CArrayFor(char **, str_ptr, array) tail = stpcpy(tail, *str_ptr);
+  return str;
+}
+
+static inline void indent_by(CArray array, int indent) {
+  for (int i = 0; i < indent; ++i) array_printf(array, " ");
+}
+
+void print_item(CArray array, Item item, int indent, int indent_first_line) {
+  if (indent_first_line) indent_by(array, indent);
+  // This str_val is used for literals; it's also overwritten for strings and errors.
+  char *str_val = (item.type == item_true ? "true" : (item.type == item_false ? "false" : "null"));
+  switch (item.type) {
+    case item_string:
+    case item_error:
+      str_val = item.value.string;  // Fall through purposefully here.
+    case item_true:
+    case item_false:
+    case item_null:
+      array_printf(array, "%s\n", str_val);
+      break;
+    case item_number:
+      array_printf(array, "%g\n", item.value.number);
+      break;
+    case item_array:
+      array_printf(array, item.value.array->count ? "[\n" : "[");
+      CArrayFor(Item *, subitem, item.value.array) {
+        print_item(array, *subitem, indent + 2, true /* indent first line */);
+      }
+      if (item.value.array->count) indent_by(array, indent);
+      array_printf(array, "]\n");
+      break;
+    case item_object:
+      array_printf(array, item.value.object->count ? "{\n" : "{");
+      CMapFor(pair, item.value.object) {
+        indent_by(array, indent + 2);
+        array_printf(array, "%s : ", (char *)pair->key);
+        print_item(array, *(Item *)pair->value, indent + 2, false /* indent first line */);
+      }
+      if (item.value.object->count) indent_by(array, indent);
+      array_printf(array, "}\n");
+      break;
+  }
+}
+
+void free_at(void *ptr) {
+  free(*(void **)ptr);
+}
+
+
+// Public functions.
 
 Item from_json(char *json_str) {
   Item item;
@@ -296,8 +365,13 @@ Item from_json(char *json_str) {
   return item;
 }
 
-char *to_json(Item item) {
-  return NULL;
+char *json_stringify(Item item) {
+  CArray str_array = CArrayNew(8, sizeof(char *));
+  str_array->releaser = free_at;
+  print_item(str_array, item, 0 /* indent */, 1 /* indent first line */);
+  char *json_str = array_join(str_array);
+  CArrayDelete(str_array);
+  return json_str;
 }
 
 void release_item(void *item_ptr) {

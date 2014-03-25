@@ -33,7 +33,7 @@ typedef struct {
 // Main functions to parse or jsonify.
 
 Item from_json(char *json_str);
-char *to_json(Item item);
+char *json_stringify(Item item);
 
 // Helper function to deallocate items.
 // release_item is designed for CArray; free_item is designed for CMap.
