@@ -4,8 +4,7 @@ tests = out/cjson_test
 testenv = DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib MALLOC_LOG_FILE=/dev/null
 cstructs_obj = out/CArray.o out/CMap.o out/CList.o
 
-all: out/test1
-
+all: out/cjson.o out/cjson_test
 
 test: out/cjson_test
 	@echo Running tests:
@@ -19,9 +18,6 @@ out/cjson_test: test/cjson_test.c $(cstructs_obj) out/ctest.o out/cjson_debug.o 
 
 out/ctest.o: test/ctest.c test/ctest.h
 	clang -o $@ -c $<
-
-out/test1: test1.c out/cjson.o $(cstructs_obj) | out
-	clang -o out/test1 $^
 
 out/cjson.o: cjson.c cjson.h | out
 	clang -c cjson.c -o out/cjson.o
