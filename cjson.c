@@ -312,10 +312,12 @@ static inline void indent_by(CArray array, int indent) {
   for (int i = 0; i < indent; ++i) array_printf(array, " ");
 }
 
-void print_item(CArray array, Item item, int indent, int indent_first_line) {
-  if (indent_first_line) indent_by(array, indent);
+void print_item(CArray array, Item item, char *indent, char *tail) {
+  char *next_indent = alloca(strlen(indent) + 1);
+  sprintf(next_indent, "  %s", indent);
   // This str_val is used for literals; it's also overwritten for strings and errors.
   char *str_val = (item.type == item_true ? "true" : (item.type == item_false ? "false" : "null"));
+  int i = 0;  // Used to index obj/arr items in loops within the switch.
   switch (item.type) {
     case item_string:
     case item_error:
@@ -323,28 +325,28 @@ void print_item(CArray array, Item item, int indent, int indent_first_line) {
     case item_true:
     case item_false:
     case item_null:
-      array_printf(array, "%s\n", str_val);
+      array_printf(array, "\"%s\"%s", str_val, tail);
       break;
     case item_number:
-      array_printf(array, "%g\n", item.value.number);
+      array_printf(array, "%g%s", item.value.number, tail);
       break;
     case item_array:
       array_printf(array, item.value.array->count ? "[\n" : "[");
       CArrayFor(Item *, subitem, item.value.array) {
-        print_item(array, *subitem, indent + 2, true /* indent first line */);
+        array_printf(array, "%s%s", (i++ ? ",\n" : ""), next_indent);
+        print_item(array, *subitem, next_indent, "");
       }
-      if (item.value.array->count) indent_by(array, indent);
-      array_printf(array, "]\n");
+      if (item.value.array->count) array_printf(array, "\n%s", indent);
+      array_printf(array, "]%s", tail);
       break;
     case item_object:
       array_printf(array, item.value.object->count ? "{\n" : "{");
       CMapFor(pair, item.value.object) {
-        indent_by(array, indent + 2);
-        array_printf(array, "%s : ", (char *)pair->key);
-        print_item(array, *(Item *)pair->value, indent + 2, false /* indent first line */);
+        array_printf(array, "%s%s\"%s\" : ", (i++ ? ",\n" : ""), next_indent, (char *)pair->key);
+        print_item(array, *(Item *)pair->value, next_indent, "");
       }
-      if (item.value.object->count) indent_by(array, indent);
-      array_printf(array, "}\n");
+      if (item.value.object->count) array_printf(array, "\n%s", indent);
+      array_printf(array, "}%s", tail);
       break;
   }
 }
@@ -368,7 +370,7 @@ Item from_json(char *json_str) {
 char *json_stringify(Item item) {
   CArray str_array = CArrayNew(8, sizeof(char *));
   str_array->releaser = free_at;
-  print_item(str_array, item, 0 /* indent */, 1 /* indent first line */);
+  print_item(str_array, item, "" /* indent */, "\n" /* tail */);
   char *json_str = array_join(str_array);
   CArrayDelete(str_array);
   return json_str;

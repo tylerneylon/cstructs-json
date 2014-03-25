@@ -346,6 +346,12 @@ int test_parse_mixed() {
 }
 
 int main(int argc, char **argv) {
+
+  Item item = from_json("[1, 2, {\"a\": 42.5}]");
+  printf("%s\n", json_stringify(item));
+
+  return 0;
+
   start_all_tests(argv[0]);
   run_tests(
     test_parse_number, test_parse_string, test_parse_literals,
