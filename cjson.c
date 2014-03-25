@@ -376,20 +376,9 @@ char *json_stringify(Item item) {
 
 void release_item(void *item_ptr) {
   Item *item = (Item *)item_ptr;
-  switch (item->type) {
-    case item_string:
-    case item_error:
-      free(item->value.string);
-      break;
-    case item_object:
-      CMapDelete(item->value.object);
-      break;
-    case item_array:
-      CArrayDelete(item->value.array);
-      break;
-    default:  // No work needed for direct values.
-      break;
-  }
+  if (item->type == item_string || item->type == item_error) free(item->value.string);
+  if (item->type == item_object) CMapDelete(item->value.object);
+  if (item->type == item_array) CArrayDelete(item->value.array);
 }
 
 void free_item(void *item) {
