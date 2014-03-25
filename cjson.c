@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#define CArrayFreeButLeaveElements free
 
 // Debug helpers.
 
@@ -16,27 +17,42 @@
 int cjson_net_obj_allocs = 0;
 int cjson_net_arr_allocs = 0;
 
+// Set up the array hooks.
+
 CArray CArrayNew_dbg(int x, size_t y) {
   cjson_net_arr_allocs++;
   return CArrayNew(x, y);
 }
+#define CArrayNew CArrayNew_dbg
 
 void CArrayDelete_dbg(CArray x) {
   cjson_net_arr_allocs--;
   CArrayDelete(x);
 }
+#define CArrayDelete CArrayDelete_dbg
+
+#ifdef CArrayFreeButLeaveElements
+#undef CArrayFreeButLeaveElements
+#endif
 
 void CArrayFreeButLeaveElements(CArray array) {
   cjson_net_arr_allocs--;
   free(array);
 }
 
-#define CArrayNew CArrayNew_dbg
-#define CArrayDelete CArrayDelete_dbg
+// Set up the map (object) hooks.
 
-#else
+CMap CMapNew_dbg(Hash x, Eq y) {
+  cjson_net_obj_allocs++;
+  return CMapNew(x, y);
+}
+#define CMapNew CMapNew_dbg
 
-#define CArrayFreeButLeaveElements free
+void CMapDelete_dbg(CMap x) {
+  cjson_net_obj_allocs--;
+  CMapDelete(x);
+}
+#define CMapDelete CMapDelete_dbg
 
 #endif
 

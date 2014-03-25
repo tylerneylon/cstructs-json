@@ -160,22 +160,16 @@ static void check_parse(StringAndItem str_and_item) {
     return;
   }
 
-  // TODO test_print out a nice-looking version of the parsed result
-  printf("Result:\n");
-  print_item(parsed_item, 0 /* indent */, false /* indent first line */);
+  if (parsed_item.type == item_string || parsed_item.type == item_number) {
+    // TODO test_print out a nice-looking version of the parsed result
+    printf("Result:\n");
+    print_item(parsed_item, 0 /* indent */, false /* indent first line */);
 
-  // We'll only get here if the item types match.
-  ItemValue parsed_val = parsed_item.value;
-  ItemValue expected_val = expected_item.value;
-  switch (expected_item.type) {
-    case item_string:
-      test_that(strcmp(parsed_val.string, expected_val.string) == 0);
-      break;
-    case item_number:
-      test_that(parsed_val.number == expected_val.number);
-      break;
-    default:
-      test_failed("Unexpected item type");
+    if (parsed_item.type == item_string) {
+      test_that(strcmp(parsed_item.value.string, expected_item.value.string) == 0);
+    } else {
+      test_that(parsed_item.value.number == expected_item.value.number);
+    }
   }
 }
 
@@ -303,6 +297,8 @@ int test_parse_objects() {
 
   Item item, *subitem;
 
+  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
+
   // Non-error cases.
   parse_to_item("{\"a\": \"def\"}");
   test_that(item.type == item_object);
@@ -312,6 +308,9 @@ int test_parse_objects() {
     test_that(subitem->type == item_string);
     test_that(strcmp((char *)subitem->value.string, "def") == 0);
   }
+  release_item(&item);
+
+  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   parse_to_item("{ \"str\" : \"ing\" , \"arr\":[\"a\", []]}");
   test_that(item.type == item_object);
@@ -320,12 +319,19 @@ int test_parse_objects() {
   test_that(CMapFind(item.value.object, "arr") != NULL);
   test_that(CMapFind(item.value.object, "not-a-key") == NULL);
 
+  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
+
   subitem = (Item *)(CMapFind(item.value.object, "str")->value);
   test_that(subitem->type == item_string);
   test_that(strcmp(subitem->value.string, "ing") == 0);
+  release_item(&item);
 
   parse_to_item("{}");
   test_that(item.type == item_object);
+  printf("%s:%d\n", __FILE__, __LINE__);
+  release_item(&item);
+
+  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   // Error cases.
   char *error_strings[] = {
@@ -334,7 +340,12 @@ int test_parse_objects() {
   for (int i = 0; i < array_size(error_strings); ++i) {
     parse_to_item(error_strings[i]);
     test_that(item.type == item_error);
+    release_item(&item);
   }
+
+  test_that(cjson_net_obj_allocs == 0);
+
+  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   return test_success;
 }
