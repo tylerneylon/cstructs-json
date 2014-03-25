@@ -237,19 +237,13 @@ int test_parse_arrays() {
 
   Item item, subitem;
 
-  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
-
   // Non-error cases.
   parse_to_item("[\"abc\", \"def\"]");
-  printf("%s:%d\n", __FILE__, __LINE__);
   test_that(item.type == item_array);
   test_that(item.value.array->count == 2);
   subitem = CArrayElementOfType(item.value.array, 1, Item);
   test_that(strcmp(subitem.value.string, "def") == 0);
-  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
   release_item(&item);
-
-  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
 
   parse_to_item(" [ \"abc\", \n \"def\" ] ");
   test_that(item.type == item_array);
@@ -269,9 +263,6 @@ int test_parse_arrays() {
   test_that(CArrayElementOfType(item.value.array, 1, Item).type == item_array);
   release_item(&item);
 
-  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
-
-
   // Error cases.
   char *error_strings[] = {
     "[\"abc\" \"def\"]", "[", "[1", "[1,", "[1,]"
@@ -279,15 +270,9 @@ int test_parse_arrays() {
   for (int i = 0; i < array_size(error_strings); ++i) {
     parse_to_item(error_strings[i]);
     test_that(item.type == item_error);
-    printf("%s:%d\n", __FILE__, __LINE__);
-    printf("About to print out the string at %p\n", item.value.string);
-    printf("Error string is:\n%s\n", item.value.string);
-    printf("%s:%d\n", __FILE__, __LINE__);
     release_item(&item);
-    printf("%s:%d\n", __FILE__, __LINE__);
   }
 
-  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
   test_that(cjson_net_arr_allocs == 0);
 
   return test_success;
@@ -296,8 +281,6 @@ int test_parse_arrays() {
 int test_parse_objects() {
 
   Item item, *subitem;
-
-  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   // Non-error cases.
   parse_to_item("{\"a\": \"def\"}");
@@ -310,16 +293,12 @@ int test_parse_objects() {
   }
   release_item(&item);
 
-  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
-
   parse_to_item("{ \"str\" : \"ing\" , \"arr\":[\"a\", []]}");
   test_that(item.type == item_object);
   test_that(item.value.object->count == 2);
   test_that(CMapFind(item.value.object, "str") != NULL);
   test_that(CMapFind(item.value.object, "arr") != NULL);
   test_that(CMapFind(item.value.object, "not-a-key") == NULL);
-
-  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   subitem = (Item *)(CMapFind(item.value.object, "str")->value);
   test_that(subitem->type == item_string);
@@ -328,10 +307,7 @@ int test_parse_objects() {
 
   parse_to_item("{}");
   test_that(item.type == item_object);
-  printf("%s:%d\n", __FILE__, __LINE__);
   release_item(&item);
-
-  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   // Error cases.
   char *error_strings[] = {
@@ -344,8 +320,6 @@ int test_parse_objects() {
   }
 
   test_that(cjson_net_obj_allocs == 0);
-
-  printf("\n&&&& %d: net obj allocs=%d\n", __LINE__, cjson_net_obj_allocs);
 
   return test_success;
 }
