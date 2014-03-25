@@ -14,6 +14,11 @@
 
 #define array_size(x) (sizeof(x) / sizeof(x[0]))
 
+// These are defined in cjson.c but not in the header since they
+// exist only when DEBUG is defined, and are only meant for tests.
+extern int cjson_net_obj_allocs;
+extern int cjson_net_arr_allocs;
+
 static char *item_type_names[] = {
   "item_string",
   "item_number",
@@ -238,6 +243,8 @@ int test_parse_arrays() {
 
   Item item, subitem;
 
+  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
+
   // Non-error cases.
   parse_to_item("[\"abc\", \"def\"]");
   printf("%s:%d\n", __FILE__, __LINE__);
@@ -245,21 +252,31 @@ int test_parse_arrays() {
   test_that(item.value.array->count == 2);
   subitem = CArrayElementOfType(item.value.array, 1, Item);
   test_that(strcmp(subitem.value.string, "def") == 0);
+  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
+  release_item(&item);
+
+  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
 
   parse_to_item(" [ \"abc\", \n \"def\" ] ");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 2);
   subitem = CArrayElementOfType(item.value.array, 1, Item);
   test_that(strcmp(subitem.value.string, "def") == 0);
+  release_item(&item);
 
   parse_to_item("[]");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 0);
+  release_item(&item);
 
   parse_to_item("[[], [[]]]");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 2);
   test_that(CArrayElementOfType(item.value.array, 1, Item).type == item_array);
+  release_item(&item);
+
+  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
+
 
   // Error cases.
   char *error_strings[] = {
@@ -268,7 +285,16 @@ int test_parse_arrays() {
   for (int i = 0; i < array_size(error_strings); ++i) {
     parse_to_item(error_strings[i]);
     test_that(item.type == item_error);
+    printf("%s:%d\n", __FILE__, __LINE__);
+    printf("About to print out the string at %p\n", item.value.string);
+    printf("Error string is:\n%s\n", item.value.string);
+    printf("%s:%d\n", __FILE__, __LINE__);
+    release_item(&item);
+    printf("%s:%d\n", __FILE__, __LINE__);
   }
+
+  printf("\n**** %d: net allocs=%d\n", __LINE__, cjson_net_arr_allocs);
+  test_that(cjson_net_arr_allocs == 0);
 
   return test_success;
 }

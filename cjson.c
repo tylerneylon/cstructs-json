@@ -9,6 +9,38 @@
 #include <string.h>
 
 
+// Debug helpers.
+
+#ifdef DEBUG
+
+int cjson_net_obj_allocs = 0;
+int cjson_net_arr_allocs = 0;
+
+CArray CArrayNew_dbg(int x, size_t y) {
+  cjson_net_arr_allocs++;
+  return CArrayNew(x, y);
+}
+
+void CArrayDelete_dbg(CArray x) {
+  cjson_net_arr_allocs--;
+  CArrayDelete(x);
+}
+
+void CArrayFreeButLeaveElements(CArray array) {
+  cjson_net_arr_allocs--;
+  free(array);
+}
+
+#define CArrayNew CArrayNew_dbg
+#define CArrayDelete CArrayDelete_dbg
+
+#else
+
+#define CArrayFreeButLeaveElements free
+
+#endif
+
+
 // Internal functions.
 
 static int str_hash(void *str_void_ptr) {
@@ -181,7 +213,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
     *(char *)CArrayNewElement(char_array) = '\0';  // Terminating null.
 
     item->value.string = char_array->elements;
-    free(char_array);  // Leaves the actual char array in memory.
+    CArrayFreeButLeaveElements(char_array);
 
     return input;
   }
@@ -211,6 +243,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
       input = parse_value(subitem, input, input_start);
       if (input == NULL) {
         *item = *subitem;
+        subitem->type = item_null;  // It is now safe to release.
         CArrayDelete(array);
         return NULL;
       }
@@ -307,9 +340,14 @@ char *parse_value(Item *item, char *input, char *input_start) {
   }
 
   // If we get here, the string is not well-formed.
+  printf("%s:%d\n", __FILE__, __LINE__);
+  printf("*input (0x%02X) is not a valid start character; setting up an error.\n", *input);
   item->type = item_error;
   int index = input - input_start;
   asprintf(&item->value.string, "Error: unexpected character (0x%02X) at index %d", *input, index);
+  printf("%s:%d\n", __FILE__, __LINE__);
+  printf("The error string lives at %p\n", item->value.string);
+  printf("The error string is: %s\n", item->value.string);
   return NULL;
 }
 
