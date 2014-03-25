@@ -312,7 +312,7 @@ static inline void indent_by(CArray array, int indent) {
   for (int i = 0; i < indent; ++i) array_printf(array, " ");
 }
 
-void print_item(CArray array, Item item, char *indent, char *tail) {
+void print_item(CArray array, Item item, char *indent) {
   char *next_indent = alloca(strlen(indent) + 1);
   sprintf(next_indent, "  %s", indent);
   // This str_val is used for literals; it's also overwritten for strings and errors.
@@ -325,28 +325,28 @@ void print_item(CArray array, Item item, char *indent, char *tail) {
     case item_true:
     case item_false:
     case item_null:
-      array_printf(array, "\"%s\"%s", str_val, tail);
+      array_printf(array, "\"%s\"", str_val);
       break;
     case item_number:
-      array_printf(array, "%g%s", item.value.number, tail);
+      array_printf(array, "%g", item.value.number);
       break;
     case item_array:
       array_printf(array, item.value.array->count ? "[\n" : "[");
       CArrayFor(Item *, subitem, item.value.array) {
         array_printf(array, "%s%s", (i++ ? ",\n" : ""), next_indent);
-        print_item(array, *subitem, next_indent, "");
+        print_item(array, *subitem, next_indent);
       }
       if (item.value.array->count) array_printf(array, "\n%s", indent);
-      array_printf(array, "]%s", tail);
+      array_printf(array, "]");
       break;
     case item_object:
       array_printf(array, item.value.object->count ? "{\n" : "{");
       CMapFor(pair, item.value.object) {
         array_printf(array, "%s%s\"%s\" : ", (i++ ? ",\n" : ""), next_indent, (char *)pair->key);
-        print_item(array, *(Item *)pair->value, next_indent, "");
+        print_item(array, *(Item *)pair->value, next_indent);
       }
       if (item.value.object->count) array_printf(array, "\n%s", indent);
-      array_printf(array, "}%s", tail);
+      array_printf(array, "}");
       break;
   }
 }
@@ -370,7 +370,8 @@ Item from_json(char *json_str) {
 char *json_stringify(Item item) {
   CArray str_array = CArrayNew(8, sizeof(char *));
   str_array->releaser = free_at;
-  print_item(str_array, item, "" /* indent */, "\n" /* tail */);
+  print_item(str_array, item, "" /* indent */);
+  array_printf(str_array, "\n");
   char *json_str = array_join(str_array);
   CArrayDelete(str_array);
   return json_str;
