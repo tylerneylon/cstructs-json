@@ -26,7 +26,7 @@ out/test1: test1.c out/cjson.o $(cstructs_obj) | out
 out/cjson.o: cjson.c cjson.h | out
 	clang -c cjson.c -o out/cjson.o
 
-out/cjson_debug.o: cjson.c cjson.h | out
+out/cjson_debug.o: cjson.c cjson.h debug_hooks.c | out
 	clang -c cjson.c -DDEBUG -o $@
 
 out/C%.o: cstructs/C%.c cstructs/C%.h | out

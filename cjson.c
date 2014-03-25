@@ -10,51 +10,8 @@
 
 #define CArrayFreeButLeaveElements free
 
-// Debug helpers.
-
-#ifdef DEBUG
-
-int cjson_net_obj_allocs = 0;
-int cjson_net_arr_allocs = 0;
-
-// Set up the array hooks.
-
-CArray CArrayNew_dbg(int x, size_t y) {
-  cjson_net_arr_allocs++;
-  return CArrayNew(x, y);
-}
-#define CArrayNew CArrayNew_dbg
-
-void CArrayDelete_dbg(CArray x) {
-  cjson_net_arr_allocs--;
-  CArrayDelete(x);
-}
-#define CArrayDelete CArrayDelete_dbg
-
-#ifdef CArrayFreeButLeaveElements
-#undef CArrayFreeButLeaveElements
-#endif
-
-void CArrayFreeButLeaveElements(CArray array) {
-  cjson_net_arr_allocs--;
-  free(array);
-}
-
-// Set up the map (object) hooks.
-
-CMap CMapNew_dbg(Hash x, Eq y) {
-  cjson_net_obj_allocs++;
-  return CMapNew(x, y);
-}
-#define CMapNew CMapNew_dbg
-
-void CMapDelete_dbg(CMap x) {
-  cjson_net_obj_allocs--;
-  CMapDelete(x);
-}
-#define CMapDelete CMapDelete_dbg
-
-#endif
+// This compiles as nothing when DEBUG is not defined.
+#include "debug_hooks.c"
 
 
 // Internal functions.
@@ -110,12 +67,9 @@ static int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
 
 // TODO Rename this; sounds too much like "expression;" it's actually "exponent."
 char *parse_exp(Item *item, char *input, char *input_start) {
-  printf("%s\n", __func__);
   if (*input == 'e' || *input == 'E') {
     input++;
-    printf("Just after e/E, I'm looking at character 0x%02X (%c)\n", *input, *input);
     if (*input == '\0') {
-      printf("Error case.\n");
       item->type = item_error;
       int index = input - input_start;
       asprintf(&item->value.string, "Error: expected exponent at index %d", index);
@@ -123,7 +77,6 @@ char *parse_exp(Item *item, char *input, char *input_start) {
     }
     double exp = 0.0;
     double sign = (*input == '-' ? -1.0 : 1.0);
-    printf("sign set to %f\n", sign);
     if (*input == '-' || *input == '+') input++;
     if (!isdigit(*input)) {
       item->type = item_error;
@@ -134,17 +87,14 @@ char *parse_exp(Item *item, char *input, char *input_start) {
     do {
       exp *= 10.0;
       exp += (*input - '0');
-      printf("exp is at %f\n", exp);
       input++;
     } while (isdigit(*input));
     item->value.number = item->value.number * pow(10.0, exp * sign);
-    printf("End of %s; *input=%c\n", __func__, *input);
   }
   return input - 1;  // Leave the number pointing at its last character.
 }
 
 char *parse_frac(Item *item, char *input, char *input_start) {
-  printf("%s\n", __func__);
   if (*input == '.') {
     input++;
     double w = 0.1;
@@ -156,7 +106,6 @@ char *parse_frac(Item *item, char *input, char *input_start) {
     }
     do {
       item->value.number += w * (*input - '0');
-      printf("At digit %c, just added quantity %f\n", *input, (w * (*input - '0')));
       w *= 0.1;
       input++;
     } while (isdigit(*input));
@@ -169,9 +118,6 @@ char *parse_frac(Item *item, char *input, char *input_start) {
 // character of the parsed value.
 char *parse_value(Item *item, char *input, char *input_start) {
 
-  printf("parse_value called at index %ld\n", input - input_start);
-  printf("tail is %s\n", input);
-
   // Parse a number.
   int sign = 1;
   if (*input == '-') {
@@ -180,7 +126,6 @@ char *parse_value(Item *item, char *input, char *input_start) {
   }
 
   if (isdigit(*input)) {
-    printf("starting number at index %ld (excludes leading - if there is one)\n", input - input_start);
     item->type = item_number;
     item->value.number = 0.0;
 
@@ -194,10 +139,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
       input++;
     }
     input = parse_frac(item, input, input_start);
-    if (input) {
-      item->value.number *= sign;
-      printf("About to leave parse_value after parsing a number with input set to %c\n", *input);
-    }
+    if (input) item->value.number *= sign;
     return input;
 
   } else if (sign == -1) {
@@ -211,7 +153,6 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse a string.
   if (*input == '"') {
-    printf("starting string at index %ld\n", input - input_start);
     input++;
     item->type = item_string;
     CArray char_array = CArrayNew(16, sizeof(char));
@@ -236,7 +177,6 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse an array.
   if (*input == '[') {
-    printf("starting array at index %ld\n", input - input_start);
     next_token(input);
 
     CArray array = CArrayNew(8, sizeof(Item));
@@ -271,7 +211,6 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse an object.
   if (*input == '{') {
-    printf("starting object at index %ld\n", input - input_start);
     next_token(input);
     CMap obj = CMapNew(str_hash, str_eq);
     obj->keyReleaser = free;
@@ -308,7 +247,6 @@ char *parse_value(Item *item, char *input, char *input_start) {
 
       // Parse the separating colon.
       next_token(input);
-      //printf("Expecting a colon at index %ld\n", input - input_start);
       if (*input != ':') {
         item->type = item_error;
         int index = input - input_start;
@@ -328,11 +266,8 @@ char *parse_value(Item *item, char *input, char *input_start) {
         return NULL;
       }
 
-      // obj takes ownership of both pointers passed in.
-      CMapSet(obj, key.value.string, subitem);
-
+      CMapSet(obj, key.value.string, subitem);  // obj takes ownership of both pointers passed in.
       next_token(input);
-      //printf("At end of obj parse cycle, index=%ld; char=0x%02X (%c)\n", input - input_start, *input, isprint(*input) ? *input : '?');
     }
     return input;
   }
@@ -356,14 +291,9 @@ char *parse_value(Item *item, char *input, char *input_start) {
   }
 
   // If we get here, the string is not well-formed.
-  printf("%s:%d\n", __FILE__, __LINE__);
-  printf("*input (0x%02X) is not a valid start character; setting up an error.\n", *input);
   item->type = item_error;
   int index = input - input_start;
   asprintf(&item->value.string, "Error: unexpected character (0x%02X) at index %d", *input, index);
-  printf("%s:%d\n", __FILE__, __LINE__);
-  printf("The error string lives at %p\n", item->value.string);
-  printf("The error string is: %s\n", item->value.string);
   return NULL;
 }
 
