@@ -345,21 +345,77 @@ int test_parse_mixed() {
   return test_success;
 }
 
+#define add_number(arr_item, num) \
+  *(Item *)CArrayNewElement(arr_item.value.array) = \
+  (Item){ .type = item_number, .value.number = num };
+
+#define new_number(n) \
+  (item = malloc(sizeof(Item)), \
+  *item = (Item) { .type = item_number, .value.number = n }, \
+  item)
+
+// Expects the value to be an Item *.
+#define obj_set(obj_item, key, val) \
+  CMapSet(obj_item.value.object, key, val)
+
+int test_stringify() {
+
+  // Currently, this test leaks some memory.
+  // This is not good practice, but it does work as a test.
+
+  char *str;
+  Item *item;
+
+  // Test from items directly.
+  Item array_item1 = { .type = item_array, .value.array = CArrayNew(4, sizeof(Item))};
+  str = json_stringify(array_item1);
+  test_str_eq(str, "[]");
+
+  Item array_item2 = { .type = item_array, .value.array = CArrayNew(4, sizeof(Item))};
+  add_number(array_item2, 1);
+  add_number(array_item2, 2);
+  add_number(array_item2, 3);
+  str = json_stringify(array_item2);
+  test_str_eq(str, "[1,2,3]");
+
+  Item obj_item = { .type = item_object, .value.object = CMapNew(str_hash, str_eq) };
+  obj_item.value.object->valueReleaser = free_item;
+  obj_set(obj_item, "abc", new_number(1));
+  obj_set(obj_item, "def", new_number(5));
+  str = json_stringify(obj_item);
+
+  // We expect str to match one of these; either one is ok.
+  char *ok1 = "{\"abc\":1,\"def\":5}";
+  char *ok2 = "{\"def\":5,\"abc\":1}";
+  test_that(strcmp(str, ok1) == 0 || strcmp(str, ok2) == 0);
+
+  // Test from items resulting from parsing.
+  char *test_data[] = {"1", "null", "true", "false", "[1,2,3]", "{\"a\":3}",
+      "[1,{}]", "[\"a\",42,0.5,{\"b\":[]}]"};
+  for (int i = 0; i < array_size(test_data); ++i) {
+    test_str_eq(json_stringify(from_json(test_data[i])), test_data[i]);
+  }
+
+  // Test that we can parse stringified items.
+  Item parsed_item;
+  parsed_item = from_json(json_stringify(array_item1));
+  test_that(parsed_item.type == item_array);
+
+  parsed_item = from_json(json_stringify(array_item2));
+  test_that(parsed_item.type == item_array);
+
+  parsed_item = from_json(json_stringify(obj_item));
+  test_that(parsed_item.type == item_object);
+
+  return test_success;
+}
+
 int main(int argc, char **argv) {
-
-  Item item = from_json("[1, 2, {\"a\": 42.5}]");
-  printf("%s\n", json_stringify(item));
-
-  printf("===\n");
-
-  printf("%s\n", json_stringify(from_json("[1, {\"abc\": [], \"def\": [1, 2], \"ghi\": {}}]")));
-
-  return 0;
-
   start_all_tests(argv[0]);
   run_tests(
     test_parse_number, test_parse_string, test_parse_literals,
-    test_parse_arrays, test_parse_objects, test_parse_mixed
+    test_parse_arrays, test_parse_objects, test_parse_mixed,
+    test_stringify
   );
   return end_all_tests();
 }

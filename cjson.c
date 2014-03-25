@@ -21,7 +21,7 @@
 
 // Internal functions.
 
-static int str_hash(void *str_void_ptr) {
+int str_hash(void *str_void_ptr) {
   char *str = (char *)str_void_ptr;
   int h = *str;
   while (*str) {
@@ -31,7 +31,7 @@ static int str_hash(void *str_void_ptr) {
   return h;
 }
 
-static int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
+int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   return !strcmp(str_void_ptr1, str_void_ptr2);
 }
 
@@ -313,17 +313,17 @@ void print_item(CArray array, Item item, char *indent, int be_terse) {
   sprintf(next_indent, "%s%s", indent, be_terse ? "" : "  ");  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
-  // This str_val is used for literals; it's also overwritten for strings and errors.
-  char *str_val = (item.type == item_true ? "true" : (item.type == item_false ? "false" : "null"));
+  char *lit[] = { [item_true] = "true", [item_false] = "false", [item_null] = "null"};
   int i = 0;  // Used to index obj/arr items in loops within the switch.
   switch (item.type) {
     case item_string:
     case item_error:
-      str_val = item.value.string;  // Fall through purposefully here.
+      array_printf(array, "\"%s\"", item.value.string);
+      break;
     case item_true:
     case item_false:
     case item_null:
-      array_printf(array, "\"%s\"", str_val);
+      array_printf(array, "%s", lit[item.type]);
       break;
     case item_number:
       array_printf(array, "%g", item.value.number);
@@ -368,8 +368,8 @@ Item from_json(char *json_str) {
 char *json_stringify(Item item) {
   CArray str_array = CArrayNew(8, sizeof(char *));
   str_array->releaser = free_at;
-  print_item(str_array, item, "" /* indent */, false /* be_terse */);
-  array_printf(str_array, "\n");
+  print_item(str_array, item, "" /* indent */, true /* be_terse */);
+  //array_printf(str_array, "\n");
   char *json_str = array_join(str_array);
   CArrayDelete(str_array);
   return json_str;

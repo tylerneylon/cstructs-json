@@ -44,3 +44,7 @@ void release_item(void *item);
 
 // Frees both the contents and the item itself; does strictly more than release_item.
 void free_item(void *item);
+
+// Hash and equality functions for use in a CMap keyed by strings.
+int str_hash(void *str_void_ptr);
+int str_eq(void *str_void_ptr1, void *str_void_ptr2);
