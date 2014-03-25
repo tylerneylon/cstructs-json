@@ -350,6 +350,10 @@ int main(int argc, char **argv) {
   Item item = from_json("[1, 2, {\"a\": 42.5}]");
   printf("%s\n", json_stringify(item));
 
+  printf("===\n");
+
+  printf("%s\n", json_stringify(from_json("[1, {\"abc\": [], \"def\": [1, 2], \"ghi\": {}}]")));
+
   return 0;
 
   start_all_tests(argv[0]);
