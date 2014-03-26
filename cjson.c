@@ -24,6 +24,9 @@
 static char *encoded_chars = "bfnrt\"\\";
 static char *decoded_chars = "\b\f\n\r\t\"\\";
 
+// A map from bytes to values as hex character.
+static int hex_char_val[256];
+
 
 // UTF-8 functions.
 //
@@ -31,8 +34,8 @@ static char *decoded_chars = "\b\f\n\r\t\"\\";
 // https://gist.github.com/tylerneylon/9773800
 
 int decode_code_point(char **s) {
-  int k = **s ? __builtin_clz(~(**s << 24)) : 0; // Count # of leading 1 bits.
-  int mask = (1 << (8 - k)) - 1;  // All 1 bits with k leading 0's.
+  int k = **s ? __builtin_clz(~(**s << 24)) : 0;  // Count # of leading 1 bits.
+  int mask = (1 << (8 - k)) - 1;                  // All 1's with k leading 0's.
   int value = **s & mask;
   for (++(*s), --k; k > 0 && **s; --k, ++(*s)) {  // Note that k = #total bytes, or 0.
     value <<= 6;
@@ -104,14 +107,39 @@ int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   input++; \
   input += strspn(input, " \t\r\n");
 
+#define map_rng(low_val, low, hi, tail) \
+  (c < low ? -1 : (c <= hi ? c - low + low_val : tail))
+
+// The value of this expression is -1 for invalid hex digits, or
+// 0-15 for valid digits; it's based on the char in variable c.
+#define value_of_hex_char \
+  map_rng(0, '0', '9', map_rng(10, 'A', 'F', map_rng(10, 'a', 'f', -1)))
+
+// TODO consolidate comments for the next two macros
+
+// At start: *input is the first hex char to read.
+// At end: c is the last-read char, *input is the first char not yet read.
+#define parse_hex_code_pt(char_array, input) \
+  for (int i = 0; i < 4; ++i) { \
+    int val = value_of_hex_char; \
+  }
+
+// At start: *input is the next char to read.
+// At end: c is the last-read char, *input is the first char not yet read.
 #define parse_string_unit(char_array, input) \
   c = *input++; \
-  if (c == '\\') { \
+  if (c != '\\') { \
+    *(char *)CArrayNewElement(char_array) = c; \
+  } else { \
     c = *input++; \
-    char *esc_ptr = strchr(encoded_chars, c); \
-    if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars]; \
-  } \
-  *(char *)CArrayNewElement(char_array) = c;
+    if (c == 'u') { \
+      parse_hex_code_pt(char_array, input); \
+    } else { \
+      char *esc_ptr = strchr(encoded_chars, c); \
+      if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars]; \
+      *(char *)CArrayNewElement(char_array) = c; \
+    } \
+  }
 
 // TODO Rename this; sounds too much like "expression;" it's actually "exponent."
 char *parse_exp(Item *item, char *input, char *input_start) {
