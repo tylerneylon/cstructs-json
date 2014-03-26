@@ -422,10 +422,11 @@ int test_unicode_escapes() {
 
   Item item = { .type = item_string, .value.string = u_str };
   char *json = json_stringify(item);
-
-  printf("json=%s\n", json);
-
   test_str_eq(json, "\"A\\\\\\\"\\u0413\\uD834\\uDD1E\"");
+
+  Item parsed_item = from_json(json);
+  test_that(parsed_item.type == item_string);
+  test_str_eq(parsed_item.value.string, u_str);
 
   return test_success;
 }

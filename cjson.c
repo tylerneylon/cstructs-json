@@ -47,7 +47,7 @@ int decode_code_point(char **s) {
 // Assumes that code is <= 0x10FFFF.
 // Ensures that nothing will be written at or beyond end.
 void encode_code_point(char **s, char *end, int code) {
-  static char val[4];
+  char val[4];
   int lead_byte_max = 0x7F;
   int val_index = 0;
   while (code > lead_byte_max) {
@@ -72,11 +72,13 @@ int split_into_surrogates(int code, int *surr1, int *surr2) {
   return 1;
 }
 
-// Returns 0 if no join was needed.
-int join_from_surrogates(int surr1, int surr2, int *code) {
-  if (surr1 < 0xD800 || surr1 > 0xDFFF) return 0;
-  *code = ((surr1 & 0x3FF + 0x40) << 10) + (surr2 & 0x3FF);
-  return 1;
+// Expects to be used in a loop and to receive all consecutive code points.
+// Returns 0 when *code is the 1st of a surrogate pair; otherwise use *code
+// as the accepted, possibly-pair-decoded, code point. Start *old at 0.
+int join_from_surrogates(int *old, int *code) {
+  if (*old) *code = (((*old & 0x3FF) + 0x40) << 10) + (*code & 0x3FF);
+  *old = ((*code & 0xD800) == 0xD800 ? *code : 0);
+  return !(*old);
 }
 
 
@@ -107,21 +109,25 @@ int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   input++; \
   input += strspn(input, " \t\r\n");
 
-#define map_rng(low_val, low, hi, tail) \
-  (c < low ? -1 : (c <= hi ? c - low + low_val : tail))
+#define rngmap(base, low, hi, too_low, too_hi) \
+  (c < low ? too_low : (c <= hi ? c - low + base : too_hi))
 
 // The value of this expression is -1 for invalid hex digits, or
 // 0-15 for valid digits; it's based on the char in variable c.
 #define value_of_hex_char \
-  map_rng(0, '0', '9', map_rng(10, 'A', 'F', map_rng(10, 'a', 'f', -1)))
+  rngmap(10, 'A', 'F', rngmap(0, '0', '9', -1, -1), rngmap(10, 'a', 'f', -1, -1))
 
 // TODO consolidate comments for the next two macros
 
 // At start: *input is the first hex char to read.
 // At end: c is the last-read char, *input is the first char not yet read.
-#define parse_hex_code_pt(char_array, input) \
-  for (int i = 0; i < 4; ++i) { \
-    int val = value_of_hex_char; \
+#define parse_hex_code_pt(char_array, input, val) \
+  for (int i = 0; c && i < 4; ++i) { \
+    c = *input++; \
+    int vohc = value_of_hex_char; \
+    if (vohc < 0) break; \
+    val <<= 4; \
+    val += vohc; \
   }
 
 // At start: *input is the next char to read.
@@ -133,7 +139,15 @@ int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   } else { \
     c = *input++; \
     if (c == 'u') { \
-      parse_hex_code_pt(char_array, input); \
+      int val = 0; \
+      parse_hex_code_pt(char_array, input, val); \
+      if (join_from_surrogates(&old_val, &val)) { \
+        char *s, buf[4]; \
+        s = buf; \
+        encode_code_point(&s, s + 4, val); \
+        CArrayStruct buf_holder = { .count = (s - buf), .elementSize = 1, .elements = buf }; \
+        CArrayAppendContents(char_array, &buf_holder); \
+      } \
     } else { \
       char *esc_ptr = strchr(encoded_chars, c); \
       if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars]; \
@@ -233,6 +247,7 @@ char *parse_value(Item *item, char *input, char *input_start) {
     item->type = item_string;
     CArray char_array = CArrayNew(16, sizeof(char));
     char c = 1;
+    int old_val = 0;
     while (c && *input != '"') {
       parse_string_unit(char_array, input);
     }
