@@ -34,7 +34,7 @@ int decode_code_point(char **s) {
   int k = **s ? __builtin_clz(~(**s << 24)) : 0; // Count # of leading 1 bits.
   int mask = (1 << (8 - k)) - 1;  // All 1 bits with k leading 0's.
   int value = **s & mask;
-  for (++(*s); k > 0 && **s; --k, ++(*s)) {  // Note that k = #total bytes, or 0.
+  for (++(*s), --k; k > 0 && **s; --k, ++(*s)) {  // Note that k = #total bytes, or 0.
     value <<= 6;
     value += (**s & 0x3F);
   }
@@ -62,10 +62,10 @@ void encode_code_point(char **s, char *end, int code) {
 // Returns 0 if no split was needed.
 int split_into_surrogates(int code, int *surr1, int *surr2) {
   if (code <= 0xFFFF) return 0;
-  *surr2 = code & 0x3FF;                      // Save the low 10 bits.
-  code >>= 10;                                // Drop the low 10 bits.
-  *surr1 = code & 0x3F;                       // Save the next 6 bits.
-  *surr1 |= ((code & (0x1F << 6)) - 1) << 6;  // Prepend the last 5 bits less 1.
+  *surr2 = 0xDC00 | (code & 0x3FF);        // Save the low 10 bits.
+  code >>= 10;                             // Drop the low 10 bits.
+  *surr1 = 0xD800 | (code & 0x03F);        // Save the next 6 bits.
+  *surr1 |= ((code & 0x7C0) - 0x40) << 6;  // Insert the last 5 bits less 1.
   return 1;
 }
 
@@ -367,6 +367,7 @@ static char *array_join(CArray array) {
 #define new_elt(arr) *(char *)CArrayNewElement(arr)
 
 #define add_u_escaped_pt(arr, pt) \
+  printf("add_u_escaped_ptr(arr, 0x%X)\n", pt); \
   new_elt(arr) = '\\'; \
   new_elt(arr) = 'u'; \
   for (int i = 0; i < 4; ++i, pt >>= 4) hex_digits[3 - i] = hex[pt % 16]; \
@@ -389,6 +390,7 @@ static char *escaped_str(char *s) {
     } else if (code_pt < 0x80) {
       new_elt(array) = code_pt;
     } else {
+      printf("Got non-ascii code pt 0x%X\n", code_pt);
       int surr1, surr2;
       if (split_into_surrogates(code_pt, &surr1, &surr2)) {
         add_u_escaped_pt(array, surr1);
@@ -410,11 +412,14 @@ void print_item(CArray array, Item item, char *indent, int be_terse) {
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
   char *lit[] = { [item_true] = "true", [item_false] = "false", [item_null] = "null"};
-  int i = 0;  // Used to index obj/arr items in loops within the switch.
+  char *esc_s;  // Used to hold escaped strings.
+  int i = 0;    // Used to index obj/arr items in loops within the switch.
   switch (item.type) {
     case item_string:
     case item_error:
-      array_printf(array, "\"%s\"", item.value.string);
+      esc_s = escaped_str(item.value.string);
+      array_printf(array, "\"%s\"", esc_s);
+      free(esc_s);
       break;
     case item_true:
     case item_false:

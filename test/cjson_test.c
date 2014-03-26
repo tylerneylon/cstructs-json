@@ -410,12 +410,32 @@ int test_stringify() {
   return test_success;
 }
 
+int test_unicode_escapes() {
+  char u_str[] = {
+    0x41, /* A */
+    0x5C, /* \ */
+    0x22, /* " */
+    0xD0, 0x93, /* Cyrillic Ghe */
+    0xF0, 0x9D, 0x84, 0x9E, /* Musical symbol G clef */
+    0x00 /* terminating null */
+  };
+
+  Item item = { .type = item_string, .value.string = u_str };
+  char *json = json_stringify(item);
+
+  printf("json=%s\n", json);
+
+  test_str_eq(json, "\"A\\\\\\\"\\u0413\\uD834\\uDD1E\"");
+
+  return test_success;
+}
+
 int main(int argc, char **argv) {
   start_all_tests(argv[0]);
   run_tests(
     test_parse_number, test_parse_string, test_parse_literals,
     test_parse_arrays, test_parse_objects, test_parse_mixed,
-    test_stringify
+    test_stringify, test_unicode_escapes
   );
   return end_all_tests();
 }
