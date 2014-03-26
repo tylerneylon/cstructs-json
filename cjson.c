@@ -72,9 +72,9 @@ int split_into_surrogates(int code, int *surr1, int *surr2) {
   return 1;
 }
 
-// Expects to be used in a loop and to receive all consecutive code points.
-// Returns 0 when *code is the 1st of a surrogate pair; otherwise use *code
-// as the accepted, possibly-pair-decoded, code point. Start *old at 0.
+// Expects to be used in a loop and see all code points in *code. Start *old at 0;
+// this function updates *old for you - don't change it. Returns 0 when *code is
+// the 1st of a surrogate pair; otherwise use *code as the final code point.
 int join_from_surrogates(int *old, int *code) {
   if (*old) *code = (((*old & 0x3FF) + 0x40) << 10) + (*code & 0x3FF);
   *old = ((*code & 0xD800) == 0xD800 ? *code : 0);
@@ -101,9 +101,6 @@ int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
 
 // Using macros is a hacky-but-not-insane (in my opinion)
 // way to ensure these 'functions' are inlined.
-
-#define skip_whitespace(input) \
-  input += strspn(input, " \t\r\n" );
 
 #define next_token(input) \
   input++; \
@@ -502,11 +499,15 @@ void free_at(void *ptr) {
 
 Item from_json(char *json_str) {
   Item item;
-  char *input = json_str;
-  skip_whitespace(input);  // TODO remove macro if we only use it here
+  char *input = json_str + strspn(json_str, " \t\r\n" );  // Skip leading whitespace.
   char *tail = parse_value(&item, input, json_str);
   // TODO Check here that the tail is effectively empty.
   return item;
+}
+
+char *json_parse(char *json_str, Item *item) {
+  char *input = json_str + strspn(json_str, " \t\r\n" );  // Skip leading whitespace.
+  return parse_value(item, input, json_str);
 }
 
 char *json_stringify(Item item) {

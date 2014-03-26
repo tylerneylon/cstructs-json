@@ -32,7 +32,12 @@ typedef struct {
 
 // Main functions to parse or jsonify.
 
+// Returns the tail of json_str after the first valid json object.
+// On error, *item has type item_error with a message in value.string.
+char *json_parse(char *json_str, Item *item);
+
 Item from_json(char *json_str);
+
 char *json_stringify(Item item);
 
 // Helper function to deallocate items.
