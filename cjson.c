@@ -33,7 +33,7 @@ static int hex_char_val[256];
 // These are from:
 // https://gist.github.com/tylerneylon/9773800
 
-int decode_code_point(char **s) {
+static int decode_code_point(char **s) {
   int k = **s ? __builtin_clz(~(**s << 24)) : 0;  // Count # of leading 1 bits.
   int mask = (1 << (8 - k)) - 1;                  // All 1's with k leading 0's.
   int value = **s & mask;
@@ -46,7 +46,7 @@ int decode_code_point(char **s) {
 
 // Assumes that code is <= 0x10FFFF.
 // Ensures that nothing will be written at or beyond end.
-void encode_code_point(char **s, char *end, int code) {
+static void encode_code_point(char **s, char *end, int code) {
   char val[4];
   int lead_byte_max = 0x7F;
   int val_index = 0;
@@ -63,7 +63,7 @@ void encode_code_point(char **s, char *end, int code) {
 }
 
 // Returns 0 if no split was needed.
-int split_into_surrogates(int code, int *surr1, int *surr2) {
+static int split_into_surrogates(int code, int *surr1, int *surr2) {
   if (code <= 0xFFFF) return 0;
   *surr2 = 0xDC00 | (code & 0x3FF);        // Save the low 10 bits.
   code >>= 10;                             // Drop the low 10 bits.
@@ -75,7 +75,7 @@ int split_into_surrogates(int code, int *surr1, int *surr2) {
 // Expects to be used in a loop and see all code points in *code. Start *old at 0;
 // this function updates *old for you - don't change it. Returns 0 when *code is
 // the 1st of a surrogate pair; otherwise use *code as the final code point.
-int join_from_surrogates(int *old, int *code) {
+static int join_from_surrogates(int *old, int *code) {
   if (*old) *code = (((*old & 0x3FF) + 0x40) << 10) + (*code & 0x3FF);
   *old = ((*code & 0xD800) == 0xD800 ? *code : 0);
   return !(*old);
@@ -83,21 +83,6 @@ int join_from_surrogates(int *old, int *code) {
 
 
 // Internal functions.
-
-int str_hash(void *str_void_ptr) {
-  char *str = (char *)str_void_ptr;
-  int h = *str;
-  while (*str) {
-    h *= 84207;
-    h += *str++;
-  }
-  return h;
-}
-
-int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
-  return !strcmp(str_void_ptr1, str_void_ptr2);
-}
-
 
 // Using macros is a hacky-but-not-insane (in my opinion)
 // way to ensure these 'functions' are inlined.
@@ -153,7 +138,7 @@ int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   }
 
 // TODO Rename this; sounds too much like "expression;" it's actually "exponent."
-char *parse_exp(Item *item, char *input, char *input_start) {
+static char *parse_exp(Item *item, char *input, char *input_start) {
   if (*input == 'e' || *input == 'E') {
     input++;
     if (*input == '\0') {
@@ -181,7 +166,7 @@ char *parse_exp(Item *item, char *input, char *input_start) {
   return input - 1;  // Leave the number pointing at its last character.
 }
 
-char *parse_frac(Item *item, char *input, char *input_start) {
+static char *parse_frac(Item *item, char *input, char *input_start) {
   if (*input == '.') {
     input++;
     double w = 0.1;
@@ -203,7 +188,7 @@ char *parse_frac(Item *item, char *input, char *input_start) {
 // Assumes there's no leading whitespace.
 // At the end, the input points to the last
 // character of the parsed value.
-char *parse_value(Item *item, char *input, char *input_start) {
+static char *parse_value(Item *item, char *input, char *input_start) {
 
   // Parse a number.
   int sign = 1;
@@ -524,4 +509,18 @@ void release_item(void *item_ptr) {
 void free_item(void *item) {
   release_item(item);
   free(item);
+}
+
+int str_hash(void *str_void_ptr) {
+  char *str = (char *)str_void_ptr;
+  int h = *str;
+  while (*str) {
+    h *= 84207;
+    h += *str++;
+  }
+  return h;
+}
+
+int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
+  return !strcmp(str_void_ptr1, str_void_ptr2);
 }

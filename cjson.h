@@ -36,8 +36,6 @@ typedef struct {
 // On error, *item has type item_error with a message in value.string.
 char *json_parse(char *json_str, Item *item);
 
-Item from_json(char *json_str);
-
 char *json_stringify(Item item);
 
 // Helper function to deallocate items.
