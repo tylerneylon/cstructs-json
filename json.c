@@ -96,10 +96,10 @@ static int join_from_surrogates(int *old, int *code) {
 #define value_of_hex_char \
   rngmap(10, 'A', 'F', rngmap(0, '0', '9', -1, -1), rngmap(10, 'a', 'f', -1, -1))
 
-// TODO consolidate comments for the next two macros
-
+// Both parse_hex_code_pt and parse_string_unit follow these rules:
 // At start: *input is the first hex char to read.
 // At end: c is the last-read char, *input is the first char not yet read.
+
 #define parse_hex_code_pt(char_array, input, val) \
   for (int i = 0; c && i < 4; ++i) { \
     c = *input++; \
@@ -109,8 +109,6 @@ static int join_from_surrogates(int *old, int *code) {
     val += vohc; \
   }
 
-// At start: *input is the next char to read.
-// At end: c is the last-read char, *input is the first char not yet read.
 #define parse_string_unit(char_array, input) \
   c = *input++; \
   if (c != '\\') { \
@@ -134,8 +132,7 @@ static int join_from_surrogates(int *old, int *code) {
     } \
   }
 
-// TODO Rename this; sounds too much like "expression;" it's actually "exponent."
-static char *parse_exp(json_Item *item, char *input, char *input_start) {
+static char *parse_exponent(json_Item *item, char *input, char *input_start) {
   if (*input == 'e' || *input == 'E') {
     input++;
     if (*input == '\0') {
@@ -163,7 +160,7 @@ static char *parse_exp(json_Item *item, char *input, char *input_start) {
   return input - 1;  // Leave the number pointing at its last character.
 }
 
-static char *parse_frac(json_Item *item, char *input, char *input_start) {
+static char *parse_frac_part(json_Item *item, char *input, char *input_start) {
   if (*input == '.') {
     input++;
     double w = 0.1;
@@ -179,7 +176,7 @@ static char *parse_frac(json_Item *item, char *input, char *input_start) {
       input++;
     } while (isdigit(*input));
   }
-  return parse_exp(item, input, input_start);
+  return parse_exponent(item, input, input_start);
 }
 
 // Assumes there's no leading whitespace.
@@ -207,7 +204,7 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
     } else {
       input++;
     }
-    input = parse_frac(item, input, input_start);
+    input = parse_frac_part(item, input, input_start);
     if (input) item->value.number *= sign;
     return input;
 
@@ -474,6 +471,15 @@ static void free_at(void *ptr) {
   free(*(void **)ptr);
 }
 
+char *json_stringify_internal(json_Item item, int be_terse) {
+  CArray str_array = CArrayNew(8, sizeof(char *));
+  str_array->releaser = free_at;
+  print_item(str_array, item, "" /* indent */, be_terse);
+  char *json_str = array_join(str_array);
+  CArrayDelete(str_array);
+  return json_str;
+}
+
 
 // Public functions.
 
@@ -487,13 +493,11 @@ char *json_parse(char *json_str, json_Item *item) {
 }
 
 char *json_stringify(json_Item item) {
-  CArray str_array = CArrayNew(8, sizeof(char *));
-  str_array->releaser = free_at;
-  print_item(str_array, item, "" /* indent */, true /* be_terse */);
-  //array_printf(str_array, "\n");
-  char *json_str = array_join(str_array);
-  CArrayDelete(str_array);
-  return json_str;
+  return json_stringify_internal(item, true /* be_terse */);
+}
+
+char *json_pretty_stringify(json_Item item) {
+  return json_stringify_internal(item, false /* be_terse */);
 }
 
 void json_release_item(void *item_ptr) {
