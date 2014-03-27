@@ -132,24 +132,27 @@ static int join_from_surrogates(int *old, int *code) {
     } \
   }
 
-static char *parse_exponent(json_Item *item, char *input, char *input_start) {
+// A consolidated function for error cleanup in parse_{value,frac_part,exponent}.
+static char *err(json_Item *item, json_Item *subitem, char *msg, int index, CArray arr, CMap obj) {
+  if (subitem) *item = *subitem;
+  if (msg) {
+    item->type = item_error;
+    asprintf(&item->value.string, "Error: %s at index %d", msg, index);
+  }
+  if (subitem) subitem->type = item_null;
+  if (arr) CArrayDelete(arr);
+  if (obj) CMapDelete(obj);
+  return NULL;
+}
+
+static char *parse_exponent(json_Item *item, char *input, char *start) {
   if (*input == 'e' || *input == 'E') {
     input++;
-    if (*input == '\0') {
-      item->type = item_error;
-      int index = input - input_start;
-      asprintf(&item->value.string, "Error: expected exponent at index %d", index);
-      return NULL;
-    }
+    if (*input == '\0') return err(item, 0, "expected exponent", input - start, 0, 0);
     double exp = 0.0;
     double sign = (*input == '-' ? -1.0 : 1.0);
     if (*input == '-' || *input == '+') input++;
-    if (!isdigit(*input)) {
-      item->type = item_error;
-      int index = input - input_start;
-      asprintf(&item->value.string, "Error: expected digit at index %d", index);
-      return NULL;
-    }
+    if (!isdigit(*input)) return err(item, 0, "expected digit", input - start, 0, 0);
     do {
       exp *= 10.0;
       exp += (*input - '0');
@@ -160,29 +163,24 @@ static char *parse_exponent(json_Item *item, char *input, char *input_start) {
   return input - 1;  // Leave the number pointing at its last character.
 }
 
-static char *parse_frac_part(json_Item *item, char *input, char *input_start) {
+static char *parse_frac_part(json_Item *item, char *input, char *start) {
   if (*input == '.') {
     input++;
     double w = 0.1;
-    if (!isdigit(*input)) {
-      item->type = item_error;
-      int index = input - input_start;
-      asprintf(&item->value.string, "Error: expected digit after . at index %d", index);
-      return NULL;
-    }
+    if (!isdigit(*input)) return err(item, 0, "expected digit after .", input - start, 0, 0);
     do {
       item->value.number += w * (*input - '0');
       w *= 0.1;
       input++;
     } while (isdigit(*input));
   }
-  return parse_exponent(item, input, input_start);
+  return parse_exponent(item, input, start);
 }
 
 // Assumes there's no leading whitespace.
 // At the end, the input points to the last
 // character of the parsed value.
-static char *parse_value(json_Item *item, char *input, char *input_start) {
+static char *parse_value(json_Item *item, char *input, char *start) {
 
   // Parse a number.
   int sign = 1;
@@ -204,17 +202,13 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
     } else {
       input++;
     }
-    input = parse_frac_part(item, input, input_start);
+    input = parse_frac_part(item, input, start);
     if (input) item->value.number *= sign;
     return input;
 
   } else if (sign == -1) {
-
-    // A '-' without a number following it.
-    item->type = item_error;
-    int index = input - input_start;
-    asprintf(&item->value.string, "Error: expected digit at index %d", index);
-    return NULL;
+    // This is a - without a number after it.
+    return err(item, 0, "expected digit", input - start, 0, 0);
   }
 
   // Parse a string.
@@ -227,13 +221,8 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
     while (c && *input != '"') {
       parse_string_unit(char_array, input);
     }
-    if (c == '\0') {
-      // We hit the end of the string before we saw a closing quote.
-      item->type = item_error;
-      asprintf(&item->value.string, "Error: unclosed string");
-      CArrayDelete(char_array);
-      return NULL;
-    }
+    // Check for he end of the string before we see a closing quote.
+    if (c == '\0') return err(item, 0, "string not closed", input - start, char_array, 0);
     *(char *)CArrayNewElement(char_array) = '\0';  // Terminating null.
 
     item->value.string = char_array->elements;
@@ -253,23 +242,12 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
 
     while (*input != ']') {
       if (array->count) {
-        if (*input != ',') {
-          item->type = item_error;
-          int index = input - input_start;
-          asprintf(&item->value.string, "Error: expected ']' or ',' at index %d", index);
-          CArrayDelete(array);
-          return NULL;
-        }
+        if (*input != ',') return err(item, 0, "expected ']' or ','", input - start, array, 0);
         next_token(input);
       }
       json_Item *subitem = (json_Item *)CArrayNewElement(array);
-      input = parse_value(subitem, input, input_start);
-      if (input == NULL) {
-        *item = *subitem;
-        subitem->type = item_null;  // It is now safe to release.
-        CArrayDelete(array);
-        return NULL;
-      }
+      input = parse_value(subitem, input, start);
+      if (input == NULL) return err(item, subitem, 0, 0, array, 0);
       next_token(input);
     }
 
@@ -286,54 +264,32 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
     item->value.object = obj;
     while (*input != '}') {
       if (obj->count) {
-        if (*input != ',') {
-          item->type = item_error;
-          int index = input - input_start;
-          asprintf(&item->value.string, "Error: expected '}' or ',' at index %d", index);
-          CMapDelete(obj);
-          return NULL;
-        }
+        if (*input != ',') return err(item, 0, "expected '}' or ','", input - start, 0, obj);
         next_token(input);
       }
 
       // Parse the key, which should be a string.
-      if (*input != '"') {
-        item->type = item_error;
-        int index = input - input_start;
-        asprintf(&item->value.string, "Error: expected '\"' at index %d", index);
-        CMapDelete(obj);
-        return NULL;
-      }
+      if (*input != '"') return err(item, 0, "expected '\"'", input - start, 0, obj);
       json_Item key;
-      input = parse_value(&key, input, input_start);
+      input = parse_value(&key, input, start);
       if (input == NULL) {
         *item = key;
         CMapDelete(obj);
         return NULL;
       }
 
+      // Set up placeholder objects in the map.
+      json_Item *subitem = (json_Item *)malloc(sizeof(json_Item));
+      CMapSet(obj, key.value.string, subitem);  // obj takes ownership of both pointers passed in.
+
       // Parse the separating colon.
       next_token(input);
-      if (*input != ':') {
-        item->type = item_error;
-        int index = input - input_start;
-        asprintf(&item->value.string, "Error: expected ':' at index %d", index);
-        CMapDelete(obj);
-        return NULL;
-      }
+      if (*input != ':') return err(item, subitem, "expected ':'", input - start, 0, obj);
 
       // Parse the value of this key.
       next_token(input);
-      json_Item *subitem = (json_Item *)malloc(sizeof(json_Item));
-      input = parse_value(subitem, input, input_start);
-      if (input == NULL) {
-        *item = *subitem;
-        free(subitem);
-        CMapDelete(obj);
-        return NULL;
-      }
-
-      CMapSet(obj, key.value.string, subitem);  // obj takes ownership of both pointers passed in.
+      input = parse_value(subitem, input, start);
+      if (input == NULL) return err(item, subitem, 0, 0, 0, obj);
       next_token(input);
     }
     return input;
@@ -347,10 +303,9 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
   for (int i = 0; i < 3; ++i) {
     if (*input != literals[i][0]) continue;
     if (strncmp(input, literals[i], lit_len[i]) != 0) {
-      item->type = item_error;
-      int index = input - input_start;
-      asprintf(&item->value.string, "Error: expected '%s' at index %d", literals[i], index);
-      return NULL;
+      char msg[32];
+      sprintf(msg, "expected '%s'", literals[i]);
+      return err(item, 0, msg, input - start, 0, 0);
     }
     item->type = types[i];
     item->value.bool = (i < 2) ? i : 0;  // The 0 literal is for the null case.
@@ -358,10 +313,7 @@ static char *parse_value(json_Item *item, char *input, char *input_start) {
   }
 
   // If we get here, the string is not well-formed.
-  item->type = item_error;
-  int index = input - input_start;
-  asprintf(&item->value.string, "Error: unexpected character (0x%02X) at index %d", *input, index);
-  return NULL;
+  return err(item, 0, "unexpected character", input - start, 0, 0);
 }
 
 // Expects the input array to have elements of type char *.
