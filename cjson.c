@@ -407,7 +407,6 @@ static char *array_join(CArray array) {
 #define new_elt(arr) *(char *)CArrayNewElement(arr)
 
 #define add_u_escaped_pt(arr, pt) \
-  printf("add_u_escaped_ptr(arr, 0x%X)\n", pt); \
   new_elt(arr) = '\\'; \
   new_elt(arr) = 'u'; \
   for (int i = 0; i < 4; ++i, pt >>= 4) hex_digits[3 - i] = hex[pt % 16]; \
@@ -430,7 +429,6 @@ static char *escaped_str(char *s) {
     } else if (code_pt < 0x80) {
       new_elt(array) = code_pt;
     } else {
-      printf("Got non-ascii code pt 0x%X\n", code_pt);
       int surr1, surr2;
       if (split_into_surrogates(code_pt, &surr1, &surr2)) {
         add_u_escaped_pt(array, surr1);
@@ -446,7 +444,7 @@ static char *escaped_str(char *s) {
   return escaped_s;
 }
 
-void print_item(CArray array, Item item, char *indent, int be_terse) {
+static void print_item(CArray array, Item item, char *indent, int be_terse) {
   char *next_indent = alloca(strlen(indent) + 1);
   sprintf(next_indent, "%s%s", indent, be_terse ? "" : "  ");  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
@@ -490,24 +488,20 @@ void print_item(CArray array, Item item, char *indent, int be_terse) {
   }
 }
 
-void free_at(void *ptr) {
+static void free_at(void *ptr) {
   free(*(void **)ptr);
 }
 
 
 // Public functions.
 
-Item from_json(char *json_str) {
-  Item item;
-  char *input = json_str + strspn(json_str, " \t\r\n" );  // Skip leading whitespace.
-  char *tail = parse_value(&item, input, json_str);
-  // TODO Check here that the tail is effectively empty.
-  return item;
-}
-
 char *json_parse(char *json_str, Item *item) {
   char *input = json_str + strspn(json_str, " \t\r\n" );  // Skip leading whitespace.
-  return parse_value(item, input, json_str);
+  input = parse_value(item, input, json_str);
+  if (input) {
+    next_token(input);  // Skip last parsed char and trailing whitespace.
+  }
+  return input;
 }
 
 char *json_stringify(Item item) {

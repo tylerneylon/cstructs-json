@@ -73,7 +73,8 @@ void print_item_(Item item, int indent, int indent_first_line) {
 
 void parse_str(char *str) {
   printf("\nString to parse is:\n%s\n", str);
-  Item item = from_json(str);
+  Item item;
+  json_parse(str, &item);
 
   printf("Parsed result has type %s\n", item_type_names[item.type]);
 
@@ -141,18 +142,17 @@ typedef struct {
 } StringAndItem;
 
 static void check_parse(StringAndItem str_and_item) {
+  test_printf("str_and_item.str is at %p\n", str_and_item.str);
+  test_printf("first char = 0x%02X\n", *str_and_item.str);
   test_printf("About to parse:\n%s\n", str_and_item.str);
-  Item parsed_item = from_json(str_and_item.str);
-  test_printf("Result has type %s\n", item_type_names[parsed_item.type]);
+  Item parsed_item;
+  json_parse(str_and_item.str, &parsed_item);
 
-  if (parsed_item.type == item_string) {
-    printf("result str length=%zd\n", strlen(parsed_item.value.string));
-  }
+  test_printf("Result has raw type %d\n", parsed_item.type);
+  test_printf("Result has type %s\n", item_type_names[parsed_item.type]);
 
   Item expected_item = str_and_item.item;
   test_that(parsed_item.type == expected_item.type);
-
-  printf("%s:%d\n", __FILE__, __LINE__);
 
   // We don't check error strings or values of literals.
   if (parsed_item.type == item_error || parsed_item.type == item_true ||
@@ -161,10 +161,6 @@ static void check_parse(StringAndItem str_and_item) {
   }
 
   if (parsed_item.type == item_string || parsed_item.type == item_number) {
-    // TODO test_print out a nice-looking version of the parsed result
-    printf("Result:\n");
-    print_item_(parsed_item, 0 /* indent */, false /* indent first line */);
-
     if (parsed_item.type == item_string) {
       test_that(strcmp(parsed_item.value.string, expected_item.value.string) == 0);
     } else {
@@ -230,7 +226,7 @@ int test_parse_literals() {
 
 #define parse_to_item(s) \
   test_printf("About to parse:\n%s\n", s); \
-  item = from_json(s);
+  json_parse(s, &item);
 
 
 int test_parse_arrays() {
@@ -393,18 +389,20 @@ int test_stringify() {
   char *test_data[] = {"1", "null", "true", "false", "[1,2,3]", "{\"a\":3}",
       "[1,{}]", "[\"a\",42,0.5,{\"b\":[]}]"};
   for (int i = 0; i < array_size(test_data); ++i) {
-    test_str_eq(json_stringify(from_json(test_data[i])), test_data[i]);
+    Item parsed_item;
+    json_parse(test_data[i], &parsed_item);
+    test_str_eq(json_stringify(parsed_item), test_data[i]);
   }
 
   // Test that we can parse stringified items.
   Item parsed_item;
-  parsed_item = from_json(json_stringify(array_item1));
+  json_parse(json_stringify(array_item1), &parsed_item);
   test_that(parsed_item.type == item_array);
 
-  parsed_item = from_json(json_stringify(array_item2));
+  json_parse(json_stringify(array_item2), &parsed_item);
   test_that(parsed_item.type == item_array);
 
-  parsed_item = from_json(json_stringify(obj_item));
+  json_parse(json_stringify(obj_item), &parsed_item);
   test_that(parsed_item.type == item_object);
 
   return test_success;
@@ -424,10 +422,26 @@ int test_unicode_escapes() {
   char *json = json_stringify(item);
   test_str_eq(json, "\"A\\\\\\\"\\u0413\\uD834\\uDD1E\"");
 
-  Item parsed_item = from_json(json);
+  Item parsed_item;
+  json_parse(json, &parsed_item);
   test_that(parsed_item.type == item_string);
   test_str_eq(parsed_item.value.string, u_str);
 
+  return test_success;
+}
+
+int test_parse_tail() {
+  char *s = "true false null [1, 2, 3] {}";
+  ItemType types[] = { item_true, item_false, item_null, item_array, item_object };
+  int i;
+  for (i = 0; *s; ++i) {
+    test_printf("i=%d *s=0x%02X (%c)\n", i, *s, *s);
+    test_that(i < array_size(types));
+    Item item;
+    s = json_parse(s, &item);
+    test_that(item.type == types[i]);
+  }
+  test_that(i == array_size(types));
   return test_success;
 }
 
@@ -436,7 +450,7 @@ int main(int argc, char **argv) {
   run_tests(
     test_parse_number, test_parse_string, test_parse_literals,
     test_parse_arrays, test_parse_objects, test_parse_mixed,
-    test_stringify, test_unicode_escapes
+    test_stringify, test_unicode_escapes, test_parse_tail
   );
   return end_all_tests();
 }
