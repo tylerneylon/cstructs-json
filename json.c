@@ -1,7 +1,7 @@
-// cjson.c
+// json.c
 //
 
-#include "cjson.h"
+#include "json.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -23,9 +23,6 @@
 
 static char *encoded_chars = "bfnrt\"\\";
 static char *decoded_chars = "\b\f\n\r\t\"\\";
-
-// A map from bytes to values as hex character.
-static int hex_char_val[256];
 
 
 // UTF-8 functions.
@@ -138,7 +135,7 @@ static int join_from_surrogates(int *old, int *code) {
   }
 
 // TODO Rename this; sounds too much like "expression;" it's actually "exponent."
-static char *parse_exp(Item *item, char *input, char *input_start) {
+static char *parse_exp(json_Item *item, char *input, char *input_start) {
   if (*input == 'e' || *input == 'E') {
     input++;
     if (*input == '\0') {
@@ -166,7 +163,7 @@ static char *parse_exp(Item *item, char *input, char *input_start) {
   return input - 1;  // Leave the number pointing at its last character.
 }
 
-static char *parse_frac(Item *item, char *input, char *input_start) {
+static char *parse_frac(json_Item *item, char *input, char *input_start) {
   if (*input == '.') {
     input++;
     double w = 0.1;
@@ -188,7 +185,7 @@ static char *parse_frac(Item *item, char *input, char *input_start) {
 // Assumes there's no leading whitespace.
 // At the end, the input points to the last
 // character of the parsed value.
-static char *parse_value(Item *item, char *input, char *input_start) {
+static char *parse_value(json_Item *item, char *input, char *input_start) {
 
   // Parse a number.
   int sign = 1;
@@ -252,8 +249,8 @@ static char *parse_value(Item *item, char *input, char *input_start) {
   if (*input == '[') {
     next_token(input);
 
-    CArray array = CArrayNew(8, sizeof(Item));
-    array->releaser = release_item;
+    CArray array = CArrayNew(8, sizeof(json_Item));
+    array->releaser = json_release_item;
     item->type = item_array;
     item->value.array = array;
 
@@ -268,7 +265,7 @@ static char *parse_value(Item *item, char *input, char *input_start) {
         }
         next_token(input);
       }
-      Item *subitem = (Item *)CArrayNewElement(array);
+      json_Item *subitem = (json_Item *)CArrayNewElement(array);
       input = parse_value(subitem, input, input_start);
       if (input == NULL) {
         *item = *subitem;
@@ -285,9 +282,9 @@ static char *parse_value(Item *item, char *input, char *input_start) {
   // Parse an object.
   if (*input == '{') {
     next_token(input);
-    CMap obj = CMapNew(str_hash, str_eq);
+    CMap obj = CMapNew(json_str_hash, json_str_eq);
     obj->keyReleaser = free;
-    obj->valueReleaser = free_item;
+    obj->valueReleaser = json_free_item;
     item->type = item_object;
     item->value.object = obj;
     while (*input != '}') {
@@ -310,7 +307,7 @@ static char *parse_value(Item *item, char *input, char *input_start) {
         CMapDelete(obj);
         return NULL;
       }
-      Item key;
+      json_Item key;
       input = parse_value(&key, input, input_start);
       if (input == NULL) {
         *item = key;
@@ -330,7 +327,7 @@ static char *parse_value(Item *item, char *input, char *input_start) {
 
       // Parse the value of this key.
       next_token(input);
-      Item *subitem = (Item *)malloc(sizeof(Item));
+      json_Item *subitem = (json_Item *)malloc(sizeof(json_Item));
       input = parse_value(subitem, input, input_start);
       if (input == NULL) {
         *item = *subitem;
@@ -348,7 +345,7 @@ static char *parse_value(Item *item, char *input, char *input_start) {
   // Parse a literal: true, false, or null.
   char *literals[3] = {"false", "true", "null"};
   size_t lit_len[3] = {5, 4, 4};
-  ItemType types[3] = {item_false, item_true, item_null};
+  json_ItemType types[3] = {item_false, item_true, item_null};
 
   for (int i = 0; i < 3; ++i) {
     if (*input != literals[i][0]) continue;
@@ -429,7 +426,7 @@ static char *escaped_str(char *s) {
   return escaped_s;
 }
 
-static void print_item(CArray array, Item item, char *indent, int be_terse) {
+static void print_item(CArray array, json_Item item, char *indent, int be_terse) {
   char *next_indent = alloca(strlen(indent) + 1);
   sprintf(next_indent, "%s%s", indent, be_terse ? "" : "  ");  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
@@ -454,7 +451,7 @@ static void print_item(CArray array, Item item, char *indent, int be_terse) {
       break;
     case item_array:
       array_printf(array, item.value.array->count && !be_terse ? "[\n" : "[");
-      CArrayFor(Item *, subitem, item.value.array) {
+      CArrayFor(json_Item *, subitem, item.value.array) {
         array_printf(array, "%s%s", (i++ ? sep : ""), next_indent);
         print_item(array, *subitem, next_indent, be_terse);
       }
@@ -465,7 +462,7 @@ static void print_item(CArray array, Item item, char *indent, int be_terse) {
       array_printf(array, item.value.object->count && !be_terse ? "{\n" : "{");
       CMapFor(pair, item.value.object) {
         array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""), next_indent, (char *)pair->key, spc);
-        print_item(array, *(Item *)pair->value, next_indent, be_terse);
+        print_item(array, *(json_Item *)pair->value, next_indent, be_terse);
       }
       if (item.value.object->count && !be_terse) array_printf(array, "\n%s", indent);
       array_printf(array, "}");
@@ -480,7 +477,7 @@ static void free_at(void *ptr) {
 
 // Public functions.
 
-char *json_parse(char *json_str, Item *item) {
+char *json_parse(char *json_str, json_Item *item) {
   char *input = json_str + strspn(json_str, " \t\r\n" );  // Skip leading whitespace.
   input = parse_value(item, input, json_str);
   if (input) {
@@ -489,7 +486,7 @@ char *json_parse(char *json_str, Item *item) {
   return input;
 }
 
-char *json_stringify(Item item) {
+char *json_stringify(json_Item item) {
   CArray str_array = CArrayNew(8, sizeof(char *));
   str_array->releaser = free_at;
   print_item(str_array, item, "" /* indent */, true /* be_terse */);
@@ -499,19 +496,19 @@ char *json_stringify(Item item) {
   return json_str;
 }
 
-void release_item(void *item_ptr) {
-  Item *item = (Item *)item_ptr;
+void json_release_item(void *item_ptr) {
+  json_Item *item = (json_Item *)item_ptr;
   if (item->type == item_string || item->type == item_error) free(item->value.string);
   if (item->type == item_object) CMapDelete(item->value.object);
   if (item->type == item_array) CArrayDelete(item->value.array);
 }
 
-void free_item(void *item) {
-  release_item(item);
+void json_free_item(void *item) {
+  json_release_item(item);
   free(item);
 }
 
-int str_hash(void *str_void_ptr) {
+int json_str_hash(void *str_void_ptr) {
   char *str = (char *)str_void_ptr;
   int h = *str;
   while (*str) {
@@ -521,6 +518,6 @@ int str_hash(void *str_void_ptr) {
   return h;
 }
 
-int str_eq(void *str_void_ptr1, void *str_void_ptr2) {
+int json_str_eq(void *str_void_ptr1, void *str_void_ptr2) {
   return !strcmp(str_void_ptr1, str_void_ptr2);
 }

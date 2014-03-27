@@ -1,9 +1,9 @@
-// cjson_test.c
+// json_test.c
 //
 // For testing us some cjson.
 //
 
-#include "cjson.h"
+#include "json.h"
 
 #include "ctest.h"
 #include <stdio.h>
@@ -32,18 +32,18 @@ static char *item_type_names[] = {
 
 typedef struct {
   char *str;
-  Item item;
+  json_Item item;
 } StringAndItem;
 
 static void check_parse(StringAndItem str_and_item) {
   test_printf("About to parse:\n%s\n", str_and_item.str);
-  Item parsed_item;
+  json_Item parsed_item;
   json_parse(str_and_item.str, &parsed_item);
 
   test_printf("Result has raw type %d\n", parsed_item.type);
   test_printf("Result has type %s\n", item_type_names[parsed_item.type]);
 
-  Item expected_item = str_and_item.item;
+  json_Item expected_item = str_and_item.item;
   test_that(parsed_item.type == expected_item.type);
 
   // We don't check error strings or values of literals.
@@ -123,33 +123,33 @@ int test_parse_literals() {
 
 int test_parse_arrays() {
 
-  Item item, subitem;
+  json_Item item, subitem;
 
   // Non-error cases.
   parse_to_item("[\"abc\", \"def\"]");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 2);
-  subitem = CArrayElementOfType(item.value.array, 1, Item);
+  subitem = CArrayElementOfType(item.value.array, 1, json_Item);
   test_that(strcmp(subitem.value.string, "def") == 0);
-  release_item(&item);
+  json_release_item(&item);
 
   parse_to_item(" [ \"abc\", \n \"def\" ] ");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 2);
-  subitem = CArrayElementOfType(item.value.array, 1, Item);
+  subitem = CArrayElementOfType(item.value.array, 1, json_Item);
   test_that(strcmp(subitem.value.string, "def") == 0);
-  release_item(&item);
+  json_release_item(&item);
 
   parse_to_item("[]");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 0);
-  release_item(&item);
+  json_release_item(&item);
 
   parse_to_item("[[], [[]]]");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 2);
-  test_that(CArrayElementOfType(item.value.array, 1, Item).type == item_array);
-  release_item(&item);
+  test_that(CArrayElementOfType(item.value.array, 1, json_Item).type == item_array);
+  json_release_item(&item);
 
   // Error cases.
   char *error_strings[] = {
@@ -158,7 +158,7 @@ int test_parse_arrays() {
   for (int i = 0; i < array_size(error_strings); ++i) {
     parse_to_item(error_strings[i]);
     test_that(item.type == item_error);
-    release_item(&item);
+    json_release_item(&item);
   }
 
   test_that(cjson_net_arr_allocs == 0);
@@ -168,18 +168,18 @@ int test_parse_arrays() {
 
 int test_parse_objects() {
 
-  Item item, *subitem;
+  json_Item item, *subitem;
 
   // Non-error cases.
   parse_to_item("{\"a\": \"def\"}");
   test_that(item.type == item_object);
   CMapFor(pair, item.value.object) {
     test_that(strcmp((char *)pair->key, "a") == 0);
-    subitem = (Item *)pair->value;
+    subitem = (json_Item *)pair->value;
     test_that(subitem->type == item_string);
     test_that(strcmp((char *)subitem->value.string, "def") == 0);
   }
-  release_item(&item);
+  json_release_item(&item);
 
   parse_to_item("{ \"str\" : \"ing\" , \"arr\":[\"a\", []]}");
   test_that(item.type == item_object);
@@ -188,14 +188,14 @@ int test_parse_objects() {
   test_that(CMapFind(item.value.object, "arr") != NULL);
   test_that(CMapFind(item.value.object, "not-a-key") == NULL);
 
-  subitem = (Item *)(CMapFind(item.value.object, "str")->value);
+  subitem = (json_Item *)(CMapFind(item.value.object, "str")->value);
   test_that(subitem->type == item_string);
   test_that(strcmp(subitem->value.string, "ing") == 0);
-  release_item(&item);
+  json_release_item(&item);
 
   parse_to_item("{}");
   test_that(item.type == item_object);
-  release_item(&item);
+  json_release_item(&item);
 
   // Error cases.
   char *error_strings[] = {
@@ -204,7 +204,7 @@ int test_parse_objects() {
   for (int i = 0; i < array_size(error_strings); ++i) {
     parse_to_item(error_strings[i]);
     test_that(item.type == item_error);
-    release_item(&item);
+    json_release_item(&item);
   }
 
   test_that(cjson_net_obj_allocs == 0);
@@ -214,12 +214,12 @@ int test_parse_objects() {
 
 int test_parse_mixed() {
 
-  Item item, *subitem;
+  json_Item item, *subitem;
 
   parse_to_item("[true, \"hi\", {\"apple\": true, \"banana\": false, \"robot\": [null]}]");
   test_that(item.type == item_array);
   test_that(item.value.array->count == 3);
-  subitem = (Item *)CArrayElement(item.value.array, 2);
+  subitem = (json_Item *)CArrayElement(item.value.array, 2);
   test_that(subitem->type == item_object);
   test_that(subitem->value.object->count == 3);
 
@@ -234,15 +234,15 @@ int test_parse_mixed() {
 }
 
 #define add_number(arr_item, num) \
-  *(Item *)CArrayNewElement(arr_item.value.array) = \
-  (Item){ .type = item_number, .value.number = num };
+  *(json_Item *)CArrayNewElement(arr_item.value.array) = \
+  (json_Item){ .type = item_number, .value.number = num };
 
 #define new_number(n) \
-  (item = malloc(sizeof(Item)), \
-  *item = (Item) { .type = item_number, .value.number = n }, \
+  (item = malloc(sizeof(json_Item)), \
+  *item = (json_Item) { .type = item_number, .value.number = n }, \
   item)
 
-// Expects the value to be an Item *.
+// Expects the value to be an json_Item *.
 #define obj_set(obj_item, key, val) \
   CMapSet(obj_item.value.object, key, val)
 
@@ -252,22 +252,22 @@ int test_stringify() {
   // This is not good practice, but it does work as a test.
 
   char *str;
-  Item *item;
+  json_Item *item;
 
   // Test from items directly.
-  Item array_item1 = { .type = item_array, .value.array = CArrayNew(4, sizeof(Item))};
+  json_Item array_item1 = { .type = item_array, .value.array = CArrayNew(4, sizeof(json_Item))};
   str = json_stringify(array_item1);
   test_str_eq(str, "[]");
 
-  Item array_item2 = { .type = item_array, .value.array = CArrayNew(4, sizeof(Item))};
+  json_Item array_item2 = { .type = item_array, .value.array = CArrayNew(4, sizeof(json_Item))};
   add_number(array_item2, 1);
   add_number(array_item2, 2);
   add_number(array_item2, 3);
   str = json_stringify(array_item2);
   test_str_eq(str, "[1,2,3]");
 
-  Item obj_item = { .type = item_object, .value.object = CMapNew(str_hash, str_eq) };
-  obj_item.value.object->valueReleaser = free_item;
+  json_Item obj_item = { .type = item_object, .value.object = CMapNew(json_str_hash, json_str_eq) };
+  obj_item.value.object->valueReleaser = json_free_item;
   obj_set(obj_item, "abc", new_number(1));
   obj_set(obj_item, "def", new_number(5));
   str = json_stringify(obj_item);
@@ -281,13 +281,13 @@ int test_stringify() {
   char *test_data[] = {"1", "null", "true", "false", "[1,2,3]", "{\"a\":3}",
       "[1,{}]", "[\"a\",42,0.5,{\"b\":[]}]"};
   for (int i = 0; i < array_size(test_data); ++i) {
-    Item parsed_item;
+    json_Item parsed_item;
     json_parse(test_data[i], &parsed_item);
     test_str_eq(json_stringify(parsed_item), test_data[i]);
   }
 
   // Test that we can parse stringified items.
-  Item parsed_item;
+  json_Item parsed_item;
   json_parse(json_stringify(array_item1), &parsed_item);
   test_that(parsed_item.type == item_array);
 
@@ -310,11 +310,11 @@ int test_unicode_escapes() {
     0x00 /* terminating null */
   };
 
-  Item item = { .type = item_string, .value.string = u_str };
+  json_Item item = { .type = item_string, .value.string = u_str };
   char *json = json_stringify(item);
   test_str_eq(json, "\"A\\\\\\\"\\u0413\\uD834\\uDD1E\"");
 
-  Item parsed_item;
+  json_Item parsed_item;
   json_parse(json, &parsed_item);
   test_that(parsed_item.type == item_string);
   test_str_eq(parsed_item.value.string, u_str);
@@ -324,12 +324,12 @@ int test_unicode_escapes() {
 
 int test_parse_tail() {
   char *s = "true false null [1, 2, 3] {}";
-  ItemType types[] = { item_true, item_false, item_null, item_array, item_object };
+  json_ItemType types[] = { item_true, item_false, item_null, item_array, item_object };
   int i;
   for (i = 0; *s; ++i) {
     test_printf("i=%d *s=0x%02X (%c)\n", i, *s, *s);
     test_that(i < array_size(types));
-    Item item;
+    json_Item item;
     s = json_parse(s, &item);
     test_that(item.type == types[i]);
   }

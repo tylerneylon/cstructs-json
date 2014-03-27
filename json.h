@@ -1,4 +1,4 @@
-// cjson.h
+// json.h
 //
 // A way to serialize / deserialize between cstructs
 // objects and strings using JSON.
@@ -12,7 +12,7 @@ typedef union {
   CArray array;
   CMap object;
   double number;
-} ItemValue;
+} json_ItemValue;
 
 typedef enum {
   item_string,
@@ -23,31 +23,31 @@ typedef enum {
   item_false,
   item_null,
   item_error
-} ItemType;
+} json_ItemType;
 
 typedef struct {
-  ItemType type;
-  ItemValue value;
-} Item;
+  json_ItemType type;
+  json_ItemValue value;
+} json_Item;
 
 // Main functions to parse or jsonify.
 
 // Returns the tail of json_str after the first valid json object.
 // On error, *item has type item_error with a message in value.string.
-char *json_parse(char *json_str, Item *item);
+char *json_parse(char *json_str, json_Item *item);
 
-char *json_stringify(Item item);
+char *json_stringify(json_Item item);
 
 // Helper function to deallocate items.
 // release_item is designed for CArray; free_item is designed for CMap.
 // They accept a void * type to be a valid releaser for a CMap/CArray.
 
 // This does NOT free the item itself; only its contents, recursively.
-void release_item(void *item);
+void json_release_item(void *item);
 
 // Frees both the contents and the item itself; does strictly more than release_item.
-void free_item(void *item);
+void json_free_item(void *item);
 
 // Hash and equality functions for use in a CMap keyed by strings.
-int str_hash(void *str_void_ptr);
-int str_eq(void *str_void_ptr1, void *str_void_ptr2);
+int json_str_hash(void *str_void_ptr);
+int json_str_eq(void *str_void_ptr1, void *str_void_ptr2);
