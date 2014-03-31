@@ -6,7 +6,6 @@
 #ifndef __CTEST_CTEST_H__
 #define __CTEST_CTEST_H__
 
-#include <string.h>
 
 ////////////////////////////////////////////////////////
 // Begin and end functions.
@@ -42,7 +41,7 @@ int end_all_tests();
 #define test_str_eq(s1, s2) test_str_eq_(s1, s2, __FILE__, __LINE__)
 
 // Directly call test_failed if you perform a custom check.
-void test_failed();
+void test_failed(char *reason_fmt, ...);
 
 
 ////////////////////////////////////////////////////////
