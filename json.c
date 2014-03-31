@@ -122,7 +122,7 @@ static int join_from_surrogates(int *old, int *code) {
         char *s, buf[4]; \
         s = buf; \
         encode_code_point(&s, s + 4, val); \
-        CArrayStruct buf_holder = { .count = (s - buf), .elementSize = 1, .elements = buf }; \
+        CArrayStruct buf_holder = { .count = (int)(s - buf), .elementSize = 1, .elements = buf }; \
         CArrayAppendContents(char_array, &buf_holder); \
       } \
     } else { \
@@ -133,11 +133,11 @@ static int join_from_surrogates(int *old, int *code) {
   }
 
 // A consolidated function for error cleanup in parse_{value,frac_part,exponent}.
-static char *err(json_Item *item, json_Item *subitem, char *msg, int index, CArray arr, CMap obj) {
+static char *err(json_Item *item, json_Item *subitem, char *msg, long index, CArray arr, CMap obj) {
   if (subitem) *item = *subitem;
   if (msg) {
     item->type = item_error;
-    asprintf(&item->value.string, "Error: %s at index %d", msg, index);
+    asprintf(&item->value.string, "Error: %s at index %ld", msg, index);
   }
   if (subitem) subitem->type = item_null;
   if (arr) CArrayDelete(arr);
@@ -308,7 +308,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
       return err(item, 0, msg, input - start, 0, 0);
     }
     item->type = types[i];
-    item->value.bool = (i < 2) ? i : 0;  // The 0 literal is for the null case.
+    item->value.boolean = (i < 2) ? i : 0;  // The 0 literal is for the null case.
     return input + (lit_len[i] - 1);
   }
 

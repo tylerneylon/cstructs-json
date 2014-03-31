@@ -8,7 +8,7 @@
 
 typedef union {
   char *string;
-  long bool;
+  long boolean;
   CArray array;
   CMap object;
   double number;
