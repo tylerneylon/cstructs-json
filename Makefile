@@ -12,7 +12,7 @@ lflags = -lm
 cc = gcc $(cflags)
 
 
-all: out/json.o out/json_test
+all: out/json.o out/jsonutil.o out/json_test
 
 test: out/json_test
 	@echo Running tests:
@@ -28,7 +28,10 @@ out/ctest.o: test/ctest.c test/ctest.h
 	$(cc) -o $@ -c $<
 
 out/json.o: json.c json.h | out
-	$(cc) -c json.c -o out/json.o
+	$(cc) -o $@ -c $<
+
+out/jsonutil.o: jsonutil.c jsonutil.h | out
+	$(cc) -o $@ -c $<
 
 out/json_debug.o: json.c json.h debug_hooks.c | out
 	$(cc) -c json.c -DDEBUG -o $@

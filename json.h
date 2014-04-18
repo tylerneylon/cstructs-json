@@ -4,6 +4,9 @@
 // objects and strings using JSON.
 //
 
+#ifndef __JSON_H__
+#define __JSON_H__
+
 #include "cstructs/cstructs.h"
 
 typedef union {
@@ -52,3 +55,6 @@ void json_free_item(void *item);
 // Hash and equality functions for use in a CMap keyed by strings.
 int json_str_hash(void *str_void_ptr);
 int json_str_eq(void *str_void_ptr1, void *str_void_ptr2);
+
+#endif
+
