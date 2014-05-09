@@ -1,4 +1,4 @@
-// debug_hooks.c
+// debug_hooks.h
 //
 // This file is designed to be #include'd from cjson.c to
 // enable memory allocation checks when the DEBUG macro

@@ -33,7 +33,7 @@ out/json.o: json.c json.h | out
 out/jsonutil.o: jsonutil.c jsonutil.h | out
 	$(cc) -o $@ -c $<
 
-out/json_debug.o: json.c json.h debug_hooks.c | out
+out/json_debug.o: json.c json.h debug_hooks.h | out
 	$(cc) -c json.c -DDEBUG -o $@
 
 out/C%.o: cstructs/C%.c cstructs/C%.h | out

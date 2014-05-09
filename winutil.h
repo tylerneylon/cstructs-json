@@ -43,17 +43,32 @@ static char *strsep(char **stringp, const char *delim) {
 #define strncpy(dst, src, num) strncpy_s(dst, num, src, _TRUNCATE)
 #define snprintf(s, n, fmt, ...) sprintf_s(s, n, fmt, __VA_ARGS__)
 
-static int asprintf(char **buffer, const char *fmt, ...) {
+static int vasprintf(char **ret, const char *fmt, va_list args) {
+  *ret = NULL;
+
+  va_list copy;
+  va_copy(copy, args);
+  int count = _vscprintf(fmt, args);
+  if (count < 0) return -1;
+  *ret = malloc(count + 1);
+  if (*ret == NULL) return -1;
+  vsprintf_s(*ret, count + 1, fmt, copy);
+  va_end(copy);
+
+  return count;
+}
+
+static int asprintf(char **ret, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-
-  int num_chars = _vscprintf(fmt, args);
-  *buffer = malloc(num_chars + 1);  // + 1 for the final '\0'.
-  vsprintf_s(*buffer, num_chars + 1, fmt, args);
-
+  int count = vasprintf(ret, fmt, args);
   va_end(args);
+  return count;
+}
 
-  return num_chars;
+static char *stpcpy(char *dst, const char *src) {
+  for (; *dst = *src; ++dst, ++src);
+  return dst;
 }
 
 #endif

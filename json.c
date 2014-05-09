@@ -9,14 +9,28 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "winutil.h"
+
 
 #define CArrayFreeButLeaveElements free
 
 // This compiles as nothing when DEBUG is not defined.
-#include "debug_hooks.c"
+#include "debug_hooks.h"
 
 #define true 1
 #define false 0
+
+// Define clo:char -> #leading ones; 0 if char == 0.
+#ifdef _WIN32
+int clo(char c) {
+  if (c == 0) { return 0; }
+  unsigned long num_ones;
+  _BitScanReverse(&num_ones, ~(c << 24));
+  return (int)(31 - num_ones);
+}
+#else
+#define clo(c) (c ? __builtin_clz(~(c << 24)) : 0)
+#endif
 
 
 // Globals.
@@ -31,8 +45,8 @@ static char *decoded_chars = "\b\f\n\r\t\"\\";
 // https://gist.github.com/tylerneylon/9773800
 
 static int decode_code_point(char **s) {
-  int k = **s ? __builtin_clz(~(**s << 24)) : 0;  // Count # of leading 1 bits.
-  int mask = (1 << (8 - k)) - 1;                  // All 1's with k leading 0's.
+  int k = clo(**s);               // Count # of leading 1 bits (0 if **s == 0).
+  int mask = (1 << (8 - k)) - 1;  // All 1's with k leading 0's.
   int value = **s & mask;
   for (++(*s), --k; k > 0 && **s; --k, ++(*s)) {  // Note that k = #total bytes, or 0.
     value <<= 6;
@@ -269,7 +283,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
       }
 
       // Parse the key, which should be a string.
-      if (*input != '"') return err(item, 0, "expected '\"'", input - start, 0, obj);
+      if (*input != '"') { return err(item, 0, "expected '\"'", input - start, 0, obj); }
       json_Item key;
       input = parse_value(&key, input, start);
       if (input == NULL) {
@@ -304,7 +318,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
     if (*input != literals[i][0]) continue;
     if (strncmp(input, literals[i], lit_len[i]) != 0) {
       char msg[32];
-      sprintf(msg, "expected '%s'", literals[i]);
+      snprintf(msg, 32, "expected '%s'", literals[i]);
       return err(item, 0, msg, input - start, 0, 0);
     }
     item->type = types[i];
@@ -376,8 +390,9 @@ static char *escaped_str(char *s) {
 }
 
 static void print_item(CArray array, json_Item item, char *indent, int be_terse) {
-  char *next_indent = alloca(strlen(indent) + 1);
-  sprintf(next_indent, "%s%s", indent, be_terse ? "" : "  ");  // Nest indents, except when terse.
+  size_t indent_len = strlen(indent) + 1;
+  char *next_indent = alloca(indent_len);
+  snprintf(next_indent, indent_len, "%s%s", indent, be_terse ? "" : "  ");  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
   char *lit[] = { [item_true] = "true", [item_false] = "false", [item_null] = "null"};
