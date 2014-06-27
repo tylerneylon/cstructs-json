@@ -1,9 +1,11 @@
-//  CArray.h
-//
-//  A C structure for flexibly working with a sequence
-//  of elements that are kept contiguously in memory.
-//  The array length is flexible, and is designed to
-//  support nesting of data structures.
+// CArray.h
+//  
+// Home repo: https://github.com/tylerneylon/cstructs
+// 
+// A C structure for flexibly working with a sequence
+// of elements that are kept contiguously in memory.
+// The array length is flexible, and is designed to
+// support nesting of data structures.
 //
 
 #ifndef __CARRAY_H__

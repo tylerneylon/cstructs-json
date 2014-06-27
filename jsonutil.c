@@ -1,3 +1,8 @@
+// jsonutil.c
+//
+// Home repo: https://github.com/tylerneylon/cstructs-json
+//
+
 #include "jsonutil.h"
 
 #include <stdio.h>

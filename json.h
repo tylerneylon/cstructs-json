@@ -1,5 +1,7 @@
 // json.h
 //
+// Home repo: https://github.com/tylerneylon/cstructs-json
+//
 // A way to serialize / deserialize between cstructs
 // objects and strings using JSON.
 //
