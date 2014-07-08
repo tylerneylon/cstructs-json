@@ -1,5 +1,5 @@
 // CMap.c
-// 
+//
 // Home repo: https://github.com/tylerneylon/cstructs
 //
 // Internal structure:
