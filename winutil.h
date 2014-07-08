@@ -9,6 +9,8 @@
 
 #ifdef _WIN32
 
+#include <windows.h>
+
 #include <malloc.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -52,7 +54,7 @@ static int vasprintf(char **ret, const char *fmt, va_list args) {
   va_copy(copy, args);
   int count = _vscprintf(fmt, args);
   if (count < 0) return -1;
-  *ret = malloc(count + 1);
+  *ret = (char *)malloc(count + 1);
   if (*ret == NULL) return -1;
   vsprintf_s(*ret, count + 1, fmt, copy);
   va_end(copy);
@@ -72,5 +74,7 @@ static char *stpcpy(char *dst, const char *src) {
   for (; *dst = *src; ++dst, ++src);
   return dst;
 }
+
+#define strncat(dst, src, num) strncat_s(dst, num, src, _TRUNCATE)
 
 #endif
