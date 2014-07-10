@@ -6,10 +6,9 @@
 // objects and strings using JSON.
 //
 
-#ifndef __JSON_H__
-#define __JSON_H__
+#pragma once
 
-#include "cstructs/cstructs.h"
+#include "../cstructs/cstructs.h"
 
 typedef union {
   char *string;
@@ -58,5 +57,5 @@ void json_free_item(void *item);
 int json_str_hash(void *str_void_ptr);
 int json_str_eq(void *str_void_ptr1, void *str_void_ptr2);
 
-#endif
+#include "jsonutil.h"
 

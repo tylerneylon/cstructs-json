@@ -1,5 +1,5 @@
 // jsonutil.h
-// 
+//
 // Home repo: https://github.com/tylerneylon/cstructs-json
 //
 // Optional utilities that make it easier to use
@@ -10,6 +10,12 @@
 #define __JSONUTIL_H__
 
 #include "json.h"
+
+// TODO Split these up as cleanly as possible.
+//      For now, I'm decided that this means putting the windows
+//      versions in their own file and leaving the non-windows stuff here
+//      since the non-windows versions are easier to read.
+//
 
 // For now the json_Item helper macros do zero bounds or key checking.
 // In the future, I'm considering adding an optional flag that could
@@ -30,12 +36,55 @@
 // json_Item creators
 // The item needs to be released iff 'new' or 'copy' is in its name.
 
-#define copy_str_item(str) ((json_Item){ .type = item_string, .value.string = strdup(str) })
-#define wrap_str_item(str) ((json_Item){ .type = item_string, .value.string = str })
-#define new_arr_item() ((json_Item){ .type = item_array, .value.array = CArrayNew(0, sizeof(json_Item)) })
-#define num_item(num) ((json_Item){ .type = item_number, .value.number = num })
 #define true_item ((json_Item){ .type = item_true })
 #define false_item ((json_Item){ .type = item_false })
+
+#ifndef _WIN32
+
+#define copy_str_item(str) ((json_Item){ .type = item_string, .value.string = strdup(str) })
+#define wrap_str_item(str) ((json_Item){ .type = item_string, .value.string = str })
+
+#define new_arr_item() ((json_Item){ .type = item_array, .value.array = CArrayNew(0, sizeof(json_Item)) })
+#define num_item(num) ((json_Item){ .type = item_number, .value.number = num })
+
+#else
+
+// Windows versions.
+
+#include <string.h>
+
+__inline json_Item copy_str_item(const char *s) {
+  json_Item item;
+  item.type = item_string;
+  item.value.string = _strdup(s);
+  return item;
+}
+
+// The input is purposefully non-const as I'd like to
+// keep it easy to contain mutable strings. Constant
+// strings can be copied instead of wrapped.
+__inline json_Item wrap_str_item(char *s) {
+  json_Item item;
+  item.type = item_string;
+  item.value.string = s;
+  return item;
+}
+
+__inline json_Item new_arr_item() {
+  json_Item item;
+  item.type = item_array;
+  item.value.array = CArrayNew(0, sizeof(json_Item));
+  return item;
+}
+
+__inline json_Item num_item(double val) {
+  json_Item item;
+  item.type = item_number;
+  item.value.number = val;
+  return item;
+}
+
+#endif
 
 // TODO Clean up the comments for json_item_has_format.
 

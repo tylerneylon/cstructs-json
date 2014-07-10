@@ -27,14 +27,14 @@ out/json_test: test/json_test.c $(cstructs_obj) out/ctest.o out/json_debug.o | o
 out/ctest.o: test/ctest.c test/ctest.h
 	$(cc) -o $@ -c $<
 
-out/json.o: json.c json.h | out
+out/json.o: json/json.c json/json.h | out
 	$(cc) -o $@ -c $<
 
-out/jsonutil.o: jsonutil.c jsonutil.h | out
+out/jsonutil.o: json/jsonutil.c json/jsonutil.h | out
 	$(cc) -o $@ -c $<
 
-out/json_debug.o: json.c json.h debug_hooks.h | out
-	$(cc) -c json.c -DDEBUG -o $@
+out/json_debug.o: json/json.c json/json.h json/debug_hooks.h | out
+	$(cc) -c $< -DDEBUG -o $@
 
 out/C%.o: cstructs/C%.c cstructs/C%.h | out
 	$(cc) -o $@ -c $<

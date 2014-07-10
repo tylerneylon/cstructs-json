@@ -5,7 +5,7 @@
 // For testing us some cjson.
 //
 
-#include "json.h"
+#include "json/json.h"
 
 #include "ctest.h"
 #include <stdio.h>

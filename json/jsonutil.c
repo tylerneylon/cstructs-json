@@ -37,10 +37,10 @@ static int json_item_has_format_(json_Item item, char **fmt) {
       if (**fmt == ',') (*fmt)++;
     }
   }
-  
+
   char          type_chars[] = {'\'',        't',       'f',        'n',       '#'};
   json_ItemType item_types[] = {item_string, item_true, item_false, item_null, item_number};
-  
+
   for (int i = 0; i < array_size(type_chars); ++i) {
     if (**fmt == type_chars[i]) {
       (*fmt)++;
@@ -60,4 +60,3 @@ int json_item_has_format(json_Item item, char *format) {
   }
   return json_item_has_format_(item, &format);
 }
-

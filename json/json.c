@@ -11,9 +11,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "winutil.h"
-
-
 #define CArrayFreeButLeaveElements free
 
 // This compiles as nothing when DEBUG is not defined.
@@ -24,6 +21,8 @@
 
 // Define clo:char -> #leading ones; 0 if char == 0.
 #ifdef _WIN32
+#include "winutil.h"
+
 int clo(char c) {
   if (c == 0) { return 0; }
   unsigned long num_ones;
@@ -392,9 +391,7 @@ static char *escaped_str(char *s) {
 }
 
 static void print_item(CArray array, json_Item item, char *indent, int be_terse) {
-  size_t indent_len = strlen(indent) + 1;
-  char *next_indent = alloca(indent_len);
-  snprintf(next_indent, indent_len, "%s%s", indent, be_terse ? "" : "  ");  // Nest indents, except when terse.
+  if (!be_terse) { asprintf(&indent, "%s  ", indent); }  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
   char *lit[] = { [item_true] = "true", [item_false] = "false", [item_null] = "null"};
@@ -418,8 +415,8 @@ static void print_item(CArray array, json_Item item, char *indent, int be_terse)
     case item_array:
       array_printf(array, item.value.array->count && !be_terse ? "[\n" : "[");
       CArrayFor(json_Item *, subitem, item.value.array) {
-        array_printf(array, "%s%s", (i++ ? sep : ""), next_indent);
-        print_item(array, *subitem, next_indent, be_terse);
+        array_printf(array, "%s%s", (i++ ? sep : ""), indent);
+        print_item(array, *subitem, indent, be_terse);
       }
       if (item.value.array->count && !be_terse) array_printf(array, "\n%s", indent);
       array_printf(array, "]");
@@ -427,8 +424,8 @@ static void print_item(CArray array, json_Item item, char *indent, int be_terse)
     case item_object:
       array_printf(array, item.value.object->count && !be_terse ? "{\n" : "{");
       CMapFor(pair, item.value.object) {
-        array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""), next_indent, (char *)pair->key, spc);
-        print_item(array, *(json_Item *)pair->value, next_indent, be_terse);
+        array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""), indent, (char *)pair->key, spc);
+        print_item(array, *(json_Item *)pair->value, indent, be_terse);
       }
       if (item.value.object->count && !be_terse) array_printf(array, "\n%s", indent);
       array_printf(array, "}");
