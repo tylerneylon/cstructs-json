@@ -1,6 +1,6 @@
 // jsonutil.h
 //
-// Home repo: https://github.com/tylerneylon/cstructs-json
+// https://github.com/tylerneylon/cstructs-json
 //
 // Optional utilities that make it easier to use
 // cstructs-json in certain cases.

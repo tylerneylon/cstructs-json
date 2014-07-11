@@ -1,6 +1,6 @@
 // json.c
 //
-// Home repo: https://github.com/tylerneylon/cstructs-json
+// https://github.com/tylerneylon/cstructs-json
 //
 
 #include "json.h"

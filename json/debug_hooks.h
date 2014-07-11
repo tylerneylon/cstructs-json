@@ -1,6 +1,6 @@
 // debug_hooks.h
 //
-// Home repo: https://github.com/tylerneylon/cstructs-json
+// https://github.com/tylerneylon/cstructs-json
 //
 // This file is designed to be #include'd from cjson.c to
 // enable memory allocation checks when the DEBUG macro
