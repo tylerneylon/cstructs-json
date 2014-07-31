@@ -20,7 +20,7 @@ Bad things about this library:
 ```
 json_Item item;
 json_parse("[1, 2, 3]", &item);
-CArrayFor(json_Item *, subitem, item.value.array) {
+CArrayFor(json_Item *, subitem, item.value.array, index) {
   printf("%g ", subitem->value.number);
 }
 // Prints out 1 2 3
