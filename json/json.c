@@ -343,10 +343,10 @@ static int array_printf(CArray array, const char *fmt, ...) {
 // Expects the array to have elements of type char *. Caller owns the newly-allocated return val.
 static char *array_join(CArray array) {
   int total_len = 0;
-  CArrayFor(char **, str_ptr, array) total_len += strlen(*str_ptr);
+  CArrayFor(char **, str_ptr, array, idx) total_len += strlen(*str_ptr);
   char *str = malloc(total_len + 1);  // +1 for the final null.
   char *tail = str;
-  CArrayFor(char **, str_ptr, array) tail = stpcpy(tail, *str_ptr);
+  CArrayFor(char **, str_ptr, array, idx) tail = stpcpy(tail, *str_ptr);
   return str;
 }
 
@@ -414,7 +414,7 @@ static void print_item(CArray array, json_Item item, char *indent, int be_terse)
       break;
     case item_array:
       array_printf(array, item.value.array->count && !be_terse ? "[\n" : "[");
-      CArrayFor(json_Item *, subitem, item.value.array) {
+      CArrayFor(json_Item *, subitem, item.value.array, idx) {
         array_printf(array, "%s%s", (i++ ? sep : ""), indent);
         print_item(array, *subitem, indent, be_terse);
       }
