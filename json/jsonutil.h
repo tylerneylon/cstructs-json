@@ -24,10 +24,12 @@
 
 // json_Item getter/setters (can be used for either)
 
-#define item_at(arr_itm, idx) (*(json_Item *)CArrayElement((arr_itm).value.array, idx))
+#define item_at(arr_itm, idx) _item_at(arr_itm, (idx < 0 ? arr_itm.value.array->count + idx : idx))
+#define _item_at(arr_itm, idx) (*(json_Item *)CArrayElement((arr_itm).value.array, idx))
 #define item_str(str_itm) ((str_itm).value.string)
 #define item_num(num_itm) ((num_itm).value.number)
 #define str_at(arr_itm, idx) item_str(item_at(arr_itm, idx))
+#define bool_at(arr_itm, idx) ((item_at(arr_itm, idx)).type == item_true)
 
 // json_Item setters
 
