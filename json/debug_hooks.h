@@ -16,39 +16,39 @@ int cjson_net_arr_allocs = 0;
 
 // Set up the array hooks.
 
-CArray CArrayNew_dbg(int x, size_t y) {
+Array array__new_dbg(int x, size_t y) {
   cjson_net_arr_allocs++;
-  return CArrayNew(x, y);
+  return array__new(x, y);
 }
-#define CArrayNew CArrayNew_dbg
+#define array__new array__new_dbg
 
-void CArrayDelete_dbg(CArray x) {
+void array__delete_dbg(Array x) {
   cjson_net_arr_allocs--;
-  CArrayDelete(x);
+  array__delete(x);
 }
-#define CArrayDelete CArrayDelete_dbg
+#define array__delete array__delete_dbg
 
-#ifdef CArrayFreeButLeaveElements
-#undef CArrayFreeButLeaveElements
+#ifdef array__free_but_leave_elements
+#undef array__free_but_leave_elements
 #endif
 
-void CArrayFreeButLeaveElements(CArray array) {
+void array__free_but_leave_elements(Array array) {
   cjson_net_arr_allocs--;
   free(array);
 }
 
 // Set up the map (object) hooks.
 
-CMap CMapNew_dbg(Hash x, Eq y) {
+Map map__new_dbg(map__Hash x, map__Eq y) {
   cjson_net_obj_allocs++;
-  return CMapNew(x, y);
+  return map__new(x, y);
 }
-#define CMapNew CMapNew_dbg
+#define map__new map__new_dbg
 
-void CMapDelete_dbg(CMap x) {
+void map__delete_dbg(Map x) {
   cjson_net_obj_allocs--;
-  CMapDelete(x);
+  map__delete(x);
 }
-#define CMapDelete CMapDelete_dbg
+#define map__delete map__delete_dbg
 
 #endif

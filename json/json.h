@@ -11,10 +11,10 @@
 #include "../cstructs/cstructs.h"
 
 typedef union {
-  char *string;
-  long boolean;
-  CArray array;
-  CMap object;
+  char * string;
+  long   boolean;
+  Array  array;
+  Map    object;
   double number;
 } json_ItemValue;
 
@@ -44,8 +44,8 @@ char *json_stringify(json_Item item);         // Smaller output with no extra wh
 char *json_pretty_stringify(json_Item item);  // Human-friendly output with more whitespace.
 
 // Helper function to deallocate items.
-// release_item is designed for CArray; free_item is designed for CMap.
-// They accept a void * type to be a valid releaser for a CMap/CArray.
+// release_item is designed for Array; free_item is designed for Map.
+// They accept a void * type to be a valid releaser for a Map/Array.
 
 // This does NOT free the item itself; only its contents, recursively.
 void json_release_item(void *item);
@@ -53,7 +53,7 @@ void json_release_item(void *item);
 // Frees both the contents and the item itself; does strictly more than release_item.
 void json_free_item(void *item);
 
-// Hash and equality functions for use in a CMap keyed by strings.
+// map__Hash and equality functions for use in a Map keyed by strings.
 int json_str_hash(void *str_void_ptr);
 int json_str_eq(void *str_void_ptr1, void *str_void_ptr2);
 

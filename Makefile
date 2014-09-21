@@ -2,7 +2,7 @@
 
 tests = out/json_test
 testenv = DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib MALLOC_LOG_FILE=/dev/null
-cstructs_obj = out/CArray.o out/CMap.o out/CList.o
+cstructs_obj = out/array.o out/map.o out/list.o
 ifeq ($(shell uname -s), Darwin)
 	cflags = $(includes) -std=c99
 else
@@ -36,7 +36,7 @@ out/jsonutil.o: json/jsonutil.c json/jsonutil.h | out
 out/json_debug.o: json/json.c json/json.h json/debug_hooks.h | out
 	$(cc) -c $< -DDEBUG -o $@
 
-out/C%.o: cstructs/C%.c cstructs/C%.h | out
+$(cstructs_obj) : out/%.o: cstructs/%.c cstructs/%.h | out
 	$(cc) -o $@ -c $<
 
 out:

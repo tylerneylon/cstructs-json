@@ -25,7 +25,7 @@
 // json_Item getter/setters (can be used for either)
 
 #define item_at(arr_itm, idx) _item_at(arr_itm, (idx < 0 ? arr_itm.value.array->count + idx : idx))
-#define _item_at(arr_itm, idx) (*(json_Item *)CArrayElement((arr_itm).value.array, idx))
+#define _item_at(arr_itm, idx) (*(json_Item *)array__item_ptr((arr_itm).value.array, idx))
 #define item_str(str_itm) ((str_itm).value.string)
 #define item_num(num_itm) ((num_itm).value.number)
 #define str_at(arr_itm, idx) item_str(item_at(arr_itm, idx))
@@ -33,7 +33,7 @@
 
 // json_Item setters
 
-#define added_item(arr_itm) (*(json_Item *)CArrayNewElement((arr_itm).value.array))
+#define added_item(arr_itm) (*(json_Item *)array__new_item_ptr((arr_itm).value.array))
 
 // json_Item creators
 // The item needs to be released iff 'new' or 'copy' is in its name.
@@ -46,7 +46,7 @@
 #define copy_str_item(str) ((json_Item){ .type = item_string, .value.string = strdup(str) })
 #define wrap_str_item(str) ((json_Item){ .type = item_string, .value.string = str })
 
-#define new_arr_item() ((json_Item){ .type = item_array, .value.array = CArrayNew(0, sizeof(json_Item)) })
+#define new_arr_item() ((json_Item){ .type = item_array, .value.array = array__new(0, sizeof(json_Item)) })
 #define num_item(num) ((json_Item){ .type = item_number, .value.number = num })
 
 #else
@@ -75,7 +75,7 @@ __inline json_Item wrap_str_item(char *s) {
 __inline json_Item new_arr_item() {
   json_Item item;
   item.type = item_array;
-  item.value.array = CArrayNew(0, sizeof(json_Item));
+  item.value.array = array__new(0, sizeof(json_Item));
   return item;
 }
 
@@ -104,7 +104,7 @@ __inline json_Item num_item(double val) {
 // {'key1':<type1>,'key2':<type2>,:<type_for_all_other_keys>}
 // also allowing simply {} which doesn't check any types within the object.
 //
-// In the future, an array can also end with ,* to mean 0 or more elements are allowed;
+// In the future, an array can also end with ,* to mean 0 or more items are allowed;
 // otherwise an exact match is expected. For example [#,#] expects exactly
 // two numbers, while [#,#,*] expects two numbers either alone or followed by whatever.
 

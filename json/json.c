@@ -11,12 +11,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CArrayFreeButLeaveElements free
+#define array__free_but_leave_elements free
 
 // This compiles as nothing when DEBUG is not defined.
 #include "debug_hooks.h"
 
-#define true 1
+#define true  1
 #define false 0
 
 // Define clo:char -> #leading ones; 0 if char == 0.
@@ -127,7 +127,7 @@ static int join_from_surrogates(int *old, int *code) {
 #define parse_string_unit(char_array, input) \
   c = *input++; \
   if (c != '\\') { \
-    *(char *)CArrayNewElement(char_array) = c; \
+    *(char *)array__new_item_ptr(char_array) = c; \
   } else { \
     c = *input++; \
     if (c == 'u') { \
@@ -137,26 +137,26 @@ static int join_from_surrogates(int *old, int *code) {
         char *s, buf[4]; \
         s = buf; \
         encode_code_point(&s, s + 4, val); \
-        CArrayStruct buf_holder = { .count = (int)(s - buf), .elementSize = 1, .elements = buf }; \
-        CArrayAppendContents(char_array, &buf_holder); \
+        ArrayStruct buf_holder = { .count = (int)(s - buf), .item_size = 1, .items = buf }; \
+        array__append_array(char_array, &buf_holder); \
       } \
     } else { \
       char *esc_ptr = strchr(encoded_chars, c); \
       if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars]; \
-      *(char *)CArrayNewElement(char_array) = c; \
+      *(char *)array__new_item_ptr(char_array) = c; \
     } \
   }
 
 // A consolidated function for error cleanup in parse_{value,frac_part,exponent}.
-static char *err(json_Item *item, json_Item *subitem, char *msg, long index, CArray arr, CMap obj) {
+static char *err(json_Item *item, json_Item *subitem, char *msg, long index, Array arr, Map obj) {
   if (subitem) *item = *subitem;
   if (msg) {
     item->type = item_error;
     asprintf(&item->value.string, "Error: %s at index %ld", msg, index);
   }
   if (subitem) subitem->type = item_null;
-  if (arr) CArrayDelete(arr);
-  if (obj) CMapDelete(obj);
+  if (arr) array__delete(arr);
+  if (obj) map__delete(obj);
   return NULL;
 }
 
@@ -230,7 +230,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
   if (*input == '"') {
     input++;
     item->type = item_string;
-    CArray char_array = CArrayNew(16, sizeof(char));
+    Array char_array = array__new(16, sizeof(char));
     char c = 1;
     int old_val = 0;
     while (c && *input != '"') {
@@ -238,10 +238,10 @@ static char *parse_value(json_Item *item, char *input, char *start) {
     }
     // Check for he end of the string before we see a closing quote.
     if (c == '\0') return err(item, 0, "string not closed", input - start, char_array, 0);
-    *(char *)CArrayNewElement(char_array) = '\0';  // Terminating null.
+    *(char *)array__new_item_ptr(char_array) = '\0';  // Terminating null.
 
-    item->value.string = char_array->elements;
-    CArrayFreeButLeaveElements(char_array);
+    item->value.string = char_array->items;
+    array__free_but_leave_elements(char_array);
 
     return input;
   }
@@ -250,7 +250,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
   if (*input == '[') {
     next_token(input);
 
-    CArray array = CArrayNew(8, sizeof(json_Item));
+    Array array = array__new(8, sizeof(json_Item));
     array->releaser = json_release_item;
     item->type = item_array;
     item->value.array = array;
@@ -260,7 +260,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
         if (*input != ',') return err(item, 0, "expected ']' or ','", input - start, array, 0);
         next_token(input);
       }
-      json_Item *subitem = (json_Item *)CArrayNewElement(array);
+      json_Item *subitem = (json_Item *)array__new_item_ptr(array);
       input = parse_value(subitem, input, start);
       if (input == NULL) return err(item, subitem, 0, 0, array, 0);
       next_token(input);
@@ -272,9 +272,9 @@ static char *parse_value(json_Item *item, char *input, char *start) {
   // Parse an object.
   if (*input == '{') {
     next_token(input);
-    CMap obj = CMapNew(json_str_hash, json_str_eq);
-    obj->keyReleaser = free;
-    obj->valueReleaser = json_free_item;
+    Map obj = map__new(json_str_hash, json_str_eq);
+    obj->key_releaser = free;
+    obj->value_releaser = json_free_item;
     item->type = item_object;
     item->value.object = obj;
     while (*input != '}') {
@@ -289,13 +289,13 @@ static char *parse_value(json_Item *item, char *input, char *start) {
       input = parse_value(&key, input, start);
       if (input == NULL) {
         *item = key;
-        CMapDelete(obj);
+        map__delete(obj);
         return NULL;
       }
 
       // Set up placeholder objects in the map.
       json_Item *subitem = (json_Item *)malloc(sizeof(json_Item));
-      CMapSet(obj, key.value.string, subitem);  // obj takes ownership of both pointers passed in.
+      map__set(obj, key.value.string, subitem);  // obj takes ownership of both pointers passed in.
 
       // Parse the separating colon.
       next_token(input);
@@ -331,26 +331,26 @@ static char *parse_value(json_Item *item, char *input, char *start) {
   return err(item, 0, "unexpected character", input - start, 0, 0);
 }
 
-// Expects the input array to have elements of type char *.
-static int array_printf(CArray array, const char *fmt, ...) {
+// Expects the input array to have items of type char *.
+static int array_printf(Array array, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  int return_value = vasprintf((char **)CArrayNewElement(array), fmt, args);
+  int return_value = vasprintf((char **)array__new_item_ptr(array), fmt, args);
   va_end(args);
   return return_value;
 }
 
-// Expects the array to have elements of type char *. Caller owns the newly-allocated return val.
-static char *array_join(CArray array) {
+// Expects the array to have items of type char *. Caller owns the newly-allocated return val.
+static char *array_join(Array array) {
   int total_len = 0;
-  CArrayFor(char **, str_ptr, array, idx) total_len += strlen(*str_ptr);
+  array__for(char **, str_ptr, array, idx) total_len += strlen(*str_ptr);
   char *str = malloc(total_len + 1);  // +1 for the final null.
   char *tail = str;
-  CArrayFor(char **, str_ptr, array, idx) tail = stpcpy(tail, *str_ptr);
+  array__for(char **, str_ptr, array, idx) tail = stpcpy(tail, *str_ptr);
   return str;
 }
 
-#define new_elt(arr) *(char *)CArrayNewElement(arr)
+#define new_elt(arr) *(char *)array__new_item_ptr(arr)
 
 #define add_u_escaped_pt(arr, pt) \
   new_elt(arr) = '\\'; \
@@ -360,7 +360,7 @@ static char *array_join(CArray array) {
 
 // Caller must free the returned string.
 static char *escaped_str(char *s) {
-  CArray array = CArrayNew(4, sizeof(char));
+  Array array = array__new(4, sizeof(char));
 
   // These are used in add_u_escaped_pt to encode non-ascii unicode characters.
   static char *hex = "0123456789ABCDEF";
@@ -385,12 +385,12 @@ static char *escaped_str(char *s) {
     }
   }
   new_elt(array) = '\0';
-  char *escaped_s = array->elements;
-  CArrayFreeButLeaveElements(array);
+  char *escaped_s = array->items;
+  array__free_but_leave_elements(array);
   return escaped_s;
 }
 
-static void print_item(CArray array, json_Item item, char *indent, int be_terse) {
+static void print_item(Array array, json_Item item, char *indent, int be_terse) {
   if (!be_terse) { asprintf(&indent, "%s  ", indent); }  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
@@ -414,7 +414,7 @@ static void print_item(CArray array, json_Item item, char *indent, int be_terse)
       break;
     case item_array:
       array_printf(array, item.value.array->count && !be_terse ? "[\n" : "[");
-      CArrayFor(json_Item *, subitem, item.value.array, idx) {
+      array__for(json_Item *, subitem, item.value.array, idx) {
         array_printf(array, "%s%s", (i++ ? sep : ""), indent);
         print_item(array, *subitem, indent, be_terse);
       }
@@ -423,7 +423,7 @@ static void print_item(CArray array, json_Item item, char *indent, int be_terse)
       break;
     case item_object:
       array_printf(array, item.value.object->count && !be_terse ? "{\n" : "{");
-      CMapFor(pair, item.value.object) {
+      map__for(pair, item.value.object) {
         array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""), indent, (char *)pair->key, spc);
         print_item(array, *(json_Item *)pair->value, indent, be_terse);
       }
@@ -438,11 +438,11 @@ static void free_at(void *ptr) {
 }
 
 char *json_stringify_internal(json_Item item, int be_terse) {
-  CArray str_array = CArrayNew(8, sizeof(char *));
+  Array str_array = array__new(8, sizeof(char *));
   str_array->releaser = free_at;
   print_item(str_array, item, "" /* indent */, be_terse);
   char *json_str = array_join(str_array);
-  CArrayDelete(str_array);
+  array__delete(str_array);
   return json_str;
 }
 
@@ -469,8 +469,8 @@ char *json_pretty_stringify(json_Item item) {
 void json_release_item(void *item_ptr) {
   json_Item *item = (json_Item *)item_ptr;
   if (item->type == item_string || item->type == item_error) free(item->value.string);
-  if (item->type == item_object) CMapDelete(item->value.object);
-  if (item->type == item_array) CArrayDelete(item->value.array);
+  if (item->type == item_object) map__delete(item->value.object);
+  if (item->type == item_array) array__delete(item->value.array);
 }
 
 void json_free_item(void *item) {
