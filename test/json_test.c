@@ -91,7 +91,7 @@ int test_parse_string() {
   StringAndItem test_data[] = {
     // Non-error cases.
     {"\"abc\"", {.type = item_string, .value.string = "abc"}},
-    {"\"\\\\\"", {.type = item_string, .value.string = "\\"}},  // "\\" -> \
+    {"\"\\\\\"", {.type = item_string, .value.string = "\\"}},  // "\\" -> \ 
     {"\"\\\"\"", {.type = item_string, .value.string = "\""}},   // "\"" -> "
     {"\"\n\"", {.type = item_string, .value.string = "\n"}},
     {"\"\"", {.type = item_string, .value.string = ""}},
