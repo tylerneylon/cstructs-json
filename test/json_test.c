@@ -91,8 +91,8 @@ int test_parse_string() {
   StringAndItem test_data[] = {
     // Non-error cases.
     {"\"abc\"", {.type = item_string, .value.string = "abc"}},
-    {"\"\\\\\"", {.type = item_string, .value.string = "\\"}},  // "\\" -> \ 
-    {"\"\\\"\"", {.type = item_string, .value.string = "\""}},   // "\"" -> "
+    {"\"\\\\\"", {.type = item_string, .value.string = "\\"}},  // "\\" -> '\'
+    {"\"\\\"\"", {.type = item_string, .value.string = "\""}},  // "\"" -> '"'
     {"\"\n\"", {.type = item_string, .value.string = "\n"}},
     {"\"\"", {.type = item_string, .value.string = ""}},
 
@@ -236,7 +236,7 @@ int test_parse_mixed() {
 }
 
 #define add_number(arr_item, num) \
-  *(json_Item *)array__new_item_ptr(arr_item.value.array) = \
+  array__new_val(arr_item.value.array, json_Item) = \
   (json_Item){ .type = item_number, .value.number = num };
 
 #define new_number(n) \

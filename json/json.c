@@ -127,7 +127,7 @@ static int join_from_surrogates(int *old, int *code) {
 #define parse_string_unit(char_array, input) \
   c = *input++; \
   if (c != '\\') { \
-    *(char *)array__new_item_ptr(char_array) = c; \
+    array__new_val(char_array, char) = c; \
   } else { \
     c = *input++; \
     if (c == 'u') { \
@@ -143,7 +143,7 @@ static int join_from_surrogates(int *old, int *code) {
     } else { \
       char *esc_ptr = strchr(encoded_chars, c); \
       if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars]; \
-      *(char *)array__new_item_ptr(char_array) = c; \
+      array__new_val(char_array, char) = c; \
     } \
   }
 
@@ -238,7 +238,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
     }
     // Check for he end of the string before we see a closing quote.
     if (c == '\0') return err(item, 0, "string not closed", input - start, char_array, 0);
-    *(char *)array__new_item_ptr(char_array) = '\0';  // Terminating null.
+    array__new_val(char_array, char) = '\0';  // Terminating null.
 
     item->value.string = char_array->items;
     array__free_but_leave_elements(char_array);
@@ -260,7 +260,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
         if (*input != ',') return err(item, 0, "expected ']' or ','", input - start, array, 0);
         next_token(input);
       }
-      json_Item *subitem = (json_Item *)array__new_item_ptr(array);
+      json_Item *subitem = (json_Item *)array__new_ptr(array);
       input = parse_value(subitem, input, start);
       if (input == NULL) return err(item, subitem, 0, 0, array, 0);
       next_token(input);
@@ -335,7 +335,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
 static int array_printf(Array array, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  int return_value = vasprintf((char **)array__new_item_ptr(array), fmt, args);
+  int return_value = vasprintf((char **)array__new_ptr(array), fmt, args);
   va_end(args);
   return return_value;
 }
@@ -350,7 +350,7 @@ static char *array_join(Array array) {
   return str;
 }
 
-#define new_elt(arr) *(char *)array__new_item_ptr(arr)
+#define new_elt(arr) array__new_val(arr, char)
 
 #define add_u_escaped_pt(arr, pt) \
   new_elt(arr) = '\\'; \
