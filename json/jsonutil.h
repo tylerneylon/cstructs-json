@@ -24,22 +24,28 @@
 
 // json_Item getter/setters (can be used for either)
 
-#define item_at(arr_itm, idx) _item_at(arr_itm, (idx < 0 ? arr_itm.value.array->count + idx : idx))
+#define item_at(arr_itm, idx) _item_at(arr_itm, (idx < 0 ? (arr_itm).value.array->count + idx : idx))
 #define _item_at(arr_itm, idx) (*(json_Item *)array__item_ptr((arr_itm).value.array, idx))
+
 #define item_str(str_itm) ((str_itm).value.string)
 #define item_num(num_itm) ((num_itm).value.number)
 #define str_at(arr_itm, idx) item_str(item_at(arr_itm, idx))
 #define bool_at(arr_itm, idx) ((item_at(arr_itm, idx)).type == item_true)
 
+// json_Item getters
+
+#define item_of(obj_itm, key) json_item_or_error(map__find((obj_itm).value.object, (void*)(key)))
+
 // json_Item setters
 
-#define added_item(arr_itm) (*(json_Item *)array__new_item_ptr((arr_itm).value.array))
+#define added_item(arr_itm) (array__new_val((arr_itm).value.array, json_Item))
 
 // json_Item creators
 // The item needs to be released iff 'new' or 'copy' is in its name.
 
 #define true_item ((json_Item){ .type = item_true })
 #define false_item ((json_Item){ .type = item_false })
+#define error_item ((json_Item){ .type = item_error })
 
 #ifndef _WIN32
 
@@ -109,5 +115,7 @@ __inline json_Item num_item(double val) {
 // two numbers, while [#,#,*] expects two numbers either alone or followed by whatever.
 
 int json_item_has_format(json_Item item, char *format);
+
+json_Item json_item_or_error(map__key_value *pair);
 
 #endif

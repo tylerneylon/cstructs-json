@@ -60,3 +60,8 @@ int json_item_has_format(json_Item item, char *format) {
   }
   return json_item_has_format_(item, &format);
 }
+
+json_Item json_item_or_error(map__key_value *pair) {
+  if (pair == NULL) return error_item;
+  return *(json_Item *)pair->value;
+}
