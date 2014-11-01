@@ -391,6 +391,7 @@ static char *escaped_str(char *s) {
 }
 
 static void print_item(Array array, json_Item item, char *indent, int be_terse) {
+  char *outer_indent = indent;
   if (!be_terse) { asprintf(&indent, "%s  ", indent); }  // Nest indents, except when terse.
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
@@ -418,7 +419,7 @@ static void print_item(Array array, json_Item item, char *indent, int be_terse) 
         array_printf(array, "%s%s", (i++ ? sep : ""), indent);
         print_item(array, *subitem, indent, be_terse);
       }
-      if (item.value.array->count && !be_terse) array_printf(array, "\n%s", indent);
+      if (item.value.array->count && !be_terse) array_printf(array, "\n%s", outer_indent);
       array_printf(array, "]");
       break;
     case item_object:
@@ -427,10 +428,11 @@ static void print_item(Array array, json_Item item, char *indent, int be_terse) 
         array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""), indent, (char *)pair->key, spc);
         print_item(array, *(json_Item *)pair->value, indent, be_terse);
       }
-      if (item.value.object->count && !be_terse) array_printf(array, "\n%s", indent);
+      if (item.value.object->count && !be_terse) array_printf(array, "\n%s", outer_indent);
       array_printf(array, "}");
       break;
   }
+  if (!be_terse) free(indent);
 }
 
 static void free_at(void *ptr) {
