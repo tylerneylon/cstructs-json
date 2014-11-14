@@ -6,10 +6,11 @@
 // cstructs-json in certain cases.
 //
 
-#ifndef __JSONUTIL_H__
-#define __JSONUTIL_H__
+#pragma once
 
 #include "json.h"
+
+#include <string.h>
 
 // TODO Split these up as cleanly as possible.
 //      For now, I'm decided that this means putting the windows
@@ -50,7 +51,7 @@
 #ifndef _WIN32
 
 #define copy_str_item(str) ((json_Item){ .type = item_string, .value.string = strdup(str) })
-#define wrap_str_item(str) ((json_Item){ .type = item_string, .value.string = str })
+#define wrap_str_item(str) ((json_Item){ .type = item_string, .value.string = (char *)str })
 
 #define new_arr_item() ((json_Item){ .type = item_array, .value.array = array__new(0, sizeof(json_Item)) })
 #define num_item(num) ((json_Item){ .type = item_number, .value.number = num })
@@ -59,8 +60,6 @@
 
 // Windows versions.
 
-#include <string.h>
-
 __inline json_Item copy_str_item(const char *s) {
   json_Item item;
   item.type = item_string;
@@ -68,10 +67,11 @@ __inline json_Item copy_str_item(const char *s) {
   return item;
 }
 
-// The input is purposefully non-const as I'd like to
-// keep it easy to contain mutable strings. Constant
-// strings can be copied instead of wrapped.
-__inline json_Item wrap_str_item(char *s) {
+// This macro exists to make it easier to use the string type as a general-purpose
+// pointer container for C-to-C communications.
+#define wrap_str_item(s) _wrap_str_item((char *)s)
+
+__inline json_Item _wrap_str_item(char *s) {
   json_Item item;
   item.type = item_string;
   item.value.string = s;
@@ -117,5 +117,3 @@ __inline json_Item num_item(double val) {
 int json_item_has_format(json_Item item, char *format);
 
 json_Item json_item_or_error(map__key_value *pair);
-
-#endif
