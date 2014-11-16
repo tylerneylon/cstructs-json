@@ -470,7 +470,10 @@ char *json_pretty_stringify(json_Item item) {
 
 void json_release_item(void *item_ptr) {
   json_Item *item = (json_Item *)item_ptr;
-  if (item->type == item_string || item->type == item_error) free(item->value.string);
+  if ((item->type == item_string || item->type == item_error) &&
+      item->value.string != NULL) {
+    free(item->value.string);
+  }
   if (item->type == item_object) map__delete(item->value.object);
   if (item->type == item_array) array__delete(item->value.array);
 }
