@@ -65,3 +65,9 @@ json_Item json_item_or_error(map__key_value *pair) {
   if (pair == NULL) return error_item;
   return *(json_Item *)pair->value;
 }
+
+void *item_copy_ptr(json_Item item) {
+  json_Item *item_copy = malloc(sizeof(json_Item));
+  *item_copy = item;
+  return item_copy;
+}

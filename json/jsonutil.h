@@ -48,6 +48,11 @@
 #define false_item ((json_Item){ .type = item_false })
 #define error_item ((json_Item){ .type = item_error })
 
+// Pointer conversion
+
+// This mallocs and shallow-copies a json_Item.
+void *item_copy_ptr(json_Item item);
+
 #ifndef _WIN32
 
 #define copy_str_item(str) ((json_Item){ .type = item_string, .value.string = strdup(str) })
