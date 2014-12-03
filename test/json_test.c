@@ -235,6 +235,10 @@ int test_parse_mixed() {
   return test_success;
 }
 
+static void json_item_freer(void *item, void *context) {
+  json_free_item(item);
+}
+
 #define add_number(arr_item, num) \
   array__new_val(arr_item.value.array, json_Item) = \
   (json_Item){ .type = item_number, .value.number = num };
@@ -269,7 +273,7 @@ int test_stringify() {
   test_str_eq(str, "[1,2,3]");
 
   json_Item obj_item = { .type = item_object, .value.object = map__new(json_str_hash, json_str_eq) };
-  obj_item.value.object->value_releaser = json_free_item;
+  obj_item.value.object->value_releaser = json_item_freer;
   obj_set(obj_item, "abc", new_number(1));
   obj_set(obj_item, "def", new_number(5));
   str = json_stringify(obj_item);

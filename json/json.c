@@ -192,6 +192,18 @@ static char *parse_frac_part(json_Item *item, char *input, char *start) {
   return parse_exponent(item, input, start);
 }
 
+static void freer(void *vp, void *context) {
+  free(vp);
+}
+
+static void json_item_releaser(void *vp, void *context) {
+  json_release_item(vp);
+}
+
+static void json_item_freer(void *vp, void *context) {
+  json_free_item(vp);
+}
+
 // Assumes there's no leading whitespace.
 // At the end, the input points to the last
 // character of the parsed value.
@@ -251,7 +263,7 @@ static char *parse_value(json_Item *item, char *input, char *start) {
     next_token(input);
 
     Array array = array__new(8, sizeof(json_Item));
-    array->releaser = json_release_item;
+    array->releaser = json_item_releaser;
     item->type = item_array;
     item->value.array = array;
 
@@ -273,8 +285,8 @@ static char *parse_value(json_Item *item, char *input, char *start) {
   if (*input == '{') {
     next_token(input);
     Map obj = map__new(json_str_hash, json_str_eq);
-    obj->key_releaser = free;
-    obj->value_releaser = json_free_item;
+    obj->key_releaser = freer;
+    obj->value_releaser = json_item_freer;
     item->type = item_object;
     item->value.object = obj;
     while (*input != '}') {
@@ -435,7 +447,7 @@ static void print_item(Array array, json_Item item, char *indent, int be_terse) 
   if (!be_terse) free(indent);
 }
 
-static void free_at(void *ptr) {
+static void free_at(void *ptr, void *context) {
   free(*(void **)ptr);
 }
 
