@@ -1,4 +1,18 @@
-# temp makefile during development
+# cstrucst-json Makefile
+#
+# This library is meant to be used by including "json/json.h", and optionally
+# "json/jsonutil.h" as well, followed by linking with their respective .o files.
+#
+# The primary make rules are:
+#
+# * all   -- Builds all object files and tests.
+# * test  -- Builds everything and then runs the tests.
+# * clean -- Removes the entire out directory.
+#
+
+
+#################################################################################
+# Variables for targets.
 
 tests = out/json_test
 testenv = DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib MALLOC_LOG_FILE=/dev/null
@@ -12,6 +26,9 @@ lflags = -lm
 cc = gcc $(cflags)
 
 
+#################################################################################
+# Primary rules; meant to be used directly.
+
 all: out/json.o out/jsonutil.o out/json_test
 
 test: out/json_test
@@ -20,6 +37,13 @@ test: out/json_test
 	@for test in $(tests); do $(testenv) $$test || exit 1; done
 	@echo -
 	@echo All tests passed!
+
+clean:
+	rm -rf out/
+
+
+#################################################################################
+# Internal rules; meant to only be used indirectly by the above rules.
 
 out/json_test: test/json_test.c $(cstructs_obj) out/ctest.o out/json_debug.o | out
 	$(cc) -o $@ $^ -I. $(lflags)
@@ -42,7 +66,5 @@ $(cstructs_obj) : out/%.o: cstructs/%.c cstructs/%.h | out
 out:
 	mkdir out
 
-clean:
-	rm -rf out/
-
+# The PHONY rule tells `make` to ignore directories with the same name as a rule.
 .PHONY: test
