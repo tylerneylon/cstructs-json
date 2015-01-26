@@ -12,6 +12,16 @@
 
 #define array_size(x) (sizeof(x) / sizeof(x[0]))
 
+// This library-internal function is defined in json.c.
+void json_item_releaser(void *vp, void *context);
+
+// Returns an empty Array of json items.
+Array json_array() {
+  Array array = array__new(0, sizeof(json_Item));
+  array->releaser = json_item_releaser;
+  return array;
+}
+
 // Internal; checks the start of fmt against item and leaves fmt pointing
 // to the unparsed tail. Returns true iff item matches the start of fmt.
 static int json_item_has_format_(json_Item item, char **fmt) {

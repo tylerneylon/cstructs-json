@@ -196,7 +196,7 @@ static void freer(void *vp, void *context) {
   free(vp);
 }
 
-static void json_item_releaser(void *vp, void *context) {
+void json_item_releaser(void *vp, void *context) {
   json_release_item(vp);
 }
 

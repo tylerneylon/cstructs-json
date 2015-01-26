@@ -18,6 +18,10 @@
 //      since the non-windows versions are easier to read.
 //
 
+// Helper functions used within the item convenience macros.
+
+Array json_array();  // Returns an empty Array of json items.
+
 // For now the json_Item helper macros do zero bounds or key checking.
 // In the future, I'm considering adding an optional flag that could
 // control bounds/key-checking at compile time. Perhaps on-by-default is
@@ -44,7 +48,7 @@
 // json_Item creators
 // The item needs to be released iff 'new' or 'copy' is in its name.
 
-#define true_item ((json_Item){ .type = item_true })
+#define true_item ((json_Item){  .type = item_true })
 #define false_item ((json_Item){ .type = item_false })
 #define error_item ((json_Item){ .type = item_error })
 
@@ -58,7 +62,7 @@ void *item_copy_ptr(json_Item item);
 #define copy_str_item(str) ((json_Item){ .type = item_string, .value.string = strdup(str) })
 #define wrap_str_item(str) ((json_Item){ .type = item_string, .value.string = (char *)str })
 
-#define new_arr_item() ((json_Item){ .type = item_array, .value.array = array__new(0, sizeof(json_Item)) })
+#define new_arr_item() ((json_Item){ .type = item_array, .value.array = json_array() })
 #define num_item(num) ((json_Item){ .type = item_number, .value.number = num })
 
 #else
@@ -86,7 +90,7 @@ __inline json_Item _wrap_str_item(char *s) {
 __inline json_Item new_arr_item() {
   json_Item item;
   item.type = item_array;
-  item.value.array = array__new(0, sizeof(json_Item));
+  item.value.array = json_array();
   return item;
 }
 
