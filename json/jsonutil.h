@@ -39,7 +39,7 @@ Array json_array();  // Returns an empty Array of json items.
 
 // json_Item getters
 
-#define item_of(obj_itm, key) json_item_or_error(map__find((obj_itm).value.object, (void*)(key)))
+#define item_of(obj_itm, key) json_item_or_error(map__get((obj_itm).value.object, (void*)(key)))
 
 // json_Item setters
 

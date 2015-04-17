@@ -186,11 +186,11 @@ int test_parse_objects() {
   parse_to_item("{ \"str\" : \"ing\" , \"arr\":[\"a\", []]}");
   test_that(item.type == item_object);
   test_that(item.value.object->count == 2);
-  test_that(map__find(item.value.object, "str") != NULL);
-  test_that(map__find(item.value.object, "arr") != NULL);
-  test_that(map__find(item.value.object, "not-a-key") == NULL);
+  test_that(map__get(item.value.object, "str") != NULL);
+  test_that(map__get(item.value.object, "arr") != NULL);
+  test_that(map__get(item.value.object, "not-a-key") == NULL);
 
-  subitem = (json_Item *)(map__find(item.value.object, "str")->value);
+  subitem = (json_Item *)(map__get(item.value.object, "str")->value);
   test_that(subitem->type == item_string);
   test_that(strcmp(subitem->value.string, "ing") == 0);
   json_release_item(&item);
