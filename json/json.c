@@ -454,7 +454,7 @@ static void free_at(void *ptr, void *context) {
 char *json_stringify_internal(json_Item item, int be_terse) {
   Array str_array = array__new(8, sizeof(char *));
   str_array->releaser = free_at;
-  print_item(str_array, item, "" /* indent */, be_terse);
+  print_item(str_array, item, "", be_terse);  // "" = indent
   char *json_str = array_join(str_array);
   array__delete(str_array);
   return json_str;
@@ -473,11 +473,11 @@ char *json_parse(char *json_str, json_Item *item) {
 }
 
 char *json_stringify(json_Item item) {
-  return json_stringify_internal(item, true /* be_terse */);
+  return json_stringify_internal(item, true);   // be_terse = true
 }
 
 char *json_pretty_stringify(json_Item item) {
-  return json_stringify_internal(item, false /* be_terse */);
+  return json_stringify_internal(item, false);  // be_terse = false
 }
 
 void json_release_item(void *item_ptr) {
