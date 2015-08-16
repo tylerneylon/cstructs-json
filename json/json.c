@@ -49,7 +49,8 @@ static int decode_code_point(char **s) {
   int k = clo(**s);               // Count # of leading 1 bits (0 if **s == 0).
   int mask = (1 << (8 - k)) - 1;  // All 1's with k leading 0's.
   int value = **s & mask;
-  for (++(*s), --k; k > 0 && **s; --k, ++(*s)) {  // Note that k = #total bytes, or 0.
+  // Note that k = #total bytes, or 0.
+  for (++(*s), --k; k > 0 && **s; --k, ++(*s)) {
     value <<= 6;
     value += (**s & 0x3F);
   }
@@ -84,9 +85,9 @@ static int split_into_surrogates(int code, int *surr1, int *surr2) {
   return 1;
 }
 
-// Expects to be used in a loop and see all code points in *code. Start *old at 0;
-// this function updates *old for you - don't change it. Returns 0 when *code is
-// the 1st of a surrogate pair; otherwise use *code as the final code point.
+// Expects to be used in a loop and see all code points in *code. Start *old at
+// 0; this function updates *old for you - don't change it. Returns 0 when *code
+// is the 1st of a surrogate pair; otherwise use *code as the final code point.
 static int join_from_surrogates(int *old, int *code) {
   if (*old) *code = (((*old & 0x3FF) + 0x40) << 10) + (*code & 0x3FF);
   *old = ((*code & 0xD800) == 0xD800 ? *code : 0);
@@ -109,7 +110,8 @@ static int join_from_surrogates(int *old, int *code) {
 // The value of this expression is -1 for invalid hex digits, or
 // 0-15 for valid digits; it's based on the char in variable c.
 #define value_of_hex_char \
-  rngmap(10, 'A', 'F', rngmap(0, '0', '9', -1, -1), rngmap(10, 'a', 'f', -1, -1))
+  rngmap(10, 'A', 'F', rngmap( 0, '0', '9', -1, -1), \
+                       rngmap(10, 'a', 'f', -1, -1))
 
 // Both parse_hex_code_pt and parse_string_unit follow these rules:
 // At start: *input is the first hex char to read.
@@ -124,31 +126,35 @@ static int join_from_surrogates(int *old, int *code) {
     val += vohc; \
   }
 
-#define parse_string_unit(char_array, input) \
-  c = *input++; \
-  if (c != '\\') { \
-    array__new_val(char_array, char) = c; \
-  } else { \
-    c = *input++; \
-    if (c == 'u') { \
-      int val = 0; \
-      parse_hex_code_pt(char_array, input, val); \
-      if (join_from_surrogates(&old_val, &val)) { \
-        char *s, buf[4]; \
-        s = buf; \
-        encode_code_point(&s, s + 4, val); \
-        ArrayStruct buf_holder = { .count = (int)(s - buf), .item_size = 1, .items = buf }; \
-        array__append_array(char_array, &buf_holder); \
-      } \
-    } else { \
-      char *esc_ptr = strchr(encoded_chars, c); \
-      if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars]; \
-      array__new_val(char_array, char) = c; \
-    } \
+#define parse_string_unit(char_array, input)                     \
+  c = *input++;                                                  \
+  if (c != '\\') {                                               \
+    array__new_val(char_array, char) = c;                        \
+  } else {                                                       \
+    c = *input++;                                                \
+    if (c == 'u') {                                              \
+      int val = 0;                                               \
+      parse_hex_code_pt(char_array, input, val);                 \
+      if (join_from_surrogates(&old_val, &val)) {                \
+        char *s, buf[4];                                         \
+        s = buf;                                                 \
+        encode_code_point(&s, s + 4, val);                       \
+        ArrayStruct buf_holder = { .count     = (int)(s - buf),  \
+                                   .item_size = 1,               \
+                                   .items     = buf };           \
+        array__append_array(char_array, &buf_holder);            \
+      }                                                          \
+    } else {                                                     \
+      char *esc_ptr = strchr(encoded_chars, c);                  \
+      if (esc_ptr) c = decoded_chars[esc_ptr - encoded_chars];   \
+      array__new_val(char_array, char) = c;                      \
+    }                                                            \
   }
 
-// A consolidated function for error cleanup in parse_{value,frac_part,exponent}.
-static char *err(json_Item *item, json_Item *subitem, char *msg, long index, Array arr, Map obj) {
+// A consolidated function for error cleanup in
+// parse_{value,frac_part,exponent}.
+static char *err(json_Item *item, json_Item *subitem,
+                 char *msg, long index, Array arr, Map obj) {
   if (subitem) *item = *subitem;
   if (msg) {
     item->type = item_error;
@@ -163,11 +169,15 @@ static char *err(json_Item *item, json_Item *subitem, char *msg, long index, Arr
 static char *parse_exponent(json_Item *item, char *input, char *start) {
   if (*input == 'e' || *input == 'E') {
     input++;
-    if (*input == '\0') return err(item, 0, "expected exponent", input - start, 0, 0);
+    if (*input == '\0') {
+      return err(item, 0, "expected exponent", input - start, 0, 0);
+    }
     double exp = 0.0;
     double sign = (*input == '-' ? -1.0 : 1.0);
     if (*input == '-' || *input == '+') input++;
-    if (!isdigit(*input)) return err(item, 0, "expected digit", input - start, 0, 0);
+    if (!isdigit(*input)) {
+      return err(item, 0, "expected digit", input - start, 0, 0);
+    }
     do {
       exp *= 10.0;
       exp += (*input - '0');
@@ -182,7 +192,9 @@ static char *parse_frac_part(json_Item *item, char *input, char *start) {
   if (*input == '.') {
     input++;
     double w = 0.1;
-    if (!isdigit(*input)) return err(item, 0, "expected digit after .", input - start, 0, 0);
+    if (!isdigit(*input)) {
+      return err(item, 0, "expected digit after .", input - start, 0, 0);
+    }
     do {
       item->value.number += w * (*input - '0');
       w *= 0.1;
@@ -249,7 +261,9 @@ static char *parse_value(json_Item *item, char *input, char *start) {
       parse_string_unit(char_array, input);
     }
     // Check for he end of the string before we see a closing quote.
-    if (c == '\0') return err(item, 0, "string not closed", input - start, char_array, 0);
+    if (c == '\0') {
+      return err(item, 0, "string not closed", input - start, char_array, 0);
+    }
     array__new_val(char_array, char) = '\0';  // Terminating null.
 
     item->value.string = char_array->items;
@@ -269,7 +283,9 @@ static char *parse_value(json_Item *item, char *input, char *start) {
 
     while (*input != ']') {
       if (array->count) {
-        if (*input != ',') return err(item, 0, "expected ']' or ','", input - start, array, 0);
+        if (*input != ',') {
+          return err(item, 0, "expected ']' or ','", input - start, array, 0);
+        }
         next_token(input);
       }
       json_Item *subitem = (json_Item *)array__new_ptr(array);
@@ -291,12 +307,16 @@ static char *parse_value(json_Item *item, char *input, char *start) {
     item->value.object = obj;
     while (*input != '}') {
       if (obj->count) {
-        if (*input != ',') return err(item, 0, "expected '}' or ','", input - start, 0, obj);
+        if (*input != ',') {
+          return err(item, 0, "expected '}' or ','", input - start, 0, obj);
+        }
         next_token(input);
       }
 
       // Parse the key, which should be a string.
-      if (*input != '"') { return err(item, 0, "expected '\"'", input - start, 0, obj); }
+      if (*input != '"') {
+        return err(item, 0, "expected '\"'", input - start, 0, obj);
+      }
       json_Item key;
       input = parse_value(&key, input, start);
       if (input == NULL) {
@@ -307,11 +327,15 @@ static char *parse_value(json_Item *item, char *input, char *start) {
 
       // Set up placeholder objects in the map.
       json_Item *subitem = (json_Item *)malloc(sizeof(json_Item));
-      map__set(obj, key.value.string, subitem);  // obj takes ownership of both pointers passed in.
+
+      // obj takes ownership of both pointers passed in.
+      map__set(obj, key.value.string, subitem);
 
       // Parse the separating colon.
       next_token(input);
-      if (*input != ':') return err(item, subitem, "expected ':'", input - start, 0, obj);
+      if (*input != ':') {
+        return err(item, subitem, "expected ':'", input - start, 0, obj);
+      }
 
       // Parse the value of this key.
       next_token(input);
@@ -335,7 +359,9 @@ static char *parse_value(json_Item *item, char *input, char *start) {
       return err(item, 0, msg, input - start, 0, 0);
     }
     item->type = types[i];
-    item->value.boolean = (i < 2) ? i : 0;  // The 0 literal is for the null case.
+
+    // The 0 literal is for the null case.
+    item->value.boolean = (i < 2) ? i : 0;
     return input + (lit_len[i] - 1);
   }
 
@@ -352,7 +378,8 @@ static int array_printf(Array array, const char *fmt, ...) {
   return return_value;
 }
 
-// Expects the array to have items of type char *. Caller owns the newly-allocated return val.
+// Expects the array to have items of type char *.
+// Caller owns the newly-allocated return val.
 static char *array_join(Array array) {
   int total_len = 0;
   array__for(char **, str_ptr, array, idx) total_len += strlen(*str_ptr);
@@ -402,12 +429,16 @@ static char *escaped_str(char *s) {
   return escaped_s;
 }
 
-static void print_item(Array array, json_Item item, char *indent, int be_terse) {
+static void print_item(Array array, json_Item item,
+                       char *indent, int be_terse) {
   char *outer_indent = indent;
-  if (!be_terse) { asprintf(&indent, "%s  ", indent); }  // Nest indents, except when terse.
+  // Nest indents, except when terse.
+  if (!be_terse) { asprintf(&indent, "%s  ", indent); }
   char *sep = be_terse ? "," : ",\n";
   char *spc = be_terse ? "" : " ";
-  char *lit[] = { [item_true] = "true", [item_false] = "false", [item_null] = "null"};
+  char *lit[] = { [item_true]  = "true" ,
+                  [item_false] = "false",
+                  [item_null]  = "null" };
   char *esc_s;  // Used to hold escaped strings.
   int i = 0;    // Used to index obj/arr items in loops within the switch.
   switch (item.type) {
@@ -431,16 +462,21 @@ static void print_item(Array array, json_Item item, char *indent, int be_terse) 
         array_printf(array, "%s%s", (i++ ? sep : ""), indent);
         print_item(array, *subitem, indent, be_terse);
       }
-      if (item.value.array->count && !be_terse) array_printf(array, "\n%s", outer_indent);
+      if (item.value.array->count && !be_terse) {
+        array_printf(array, "\n%s", outer_indent);
+      }
       array_printf(array, "]");
       break;
     case item_object:
       array_printf(array, item.value.object->count && !be_terse ? "{\n" : "{");
       map__for(pair, item.value.object) {
-        array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""), indent, (char *)pair->key, spc);
+        array_printf(array, "%s%s\"%s\":%s", (i++ ? sep : ""),
+                     indent, (char *)pair->key, spc);
         print_item(array, *(json_Item *)pair->value, indent, be_terse);
       }
-      if (item.value.object->count && !be_terse) array_printf(array, "\n%s", outer_indent);
+      if (item.value.object->count && !be_terse) {
+        array_printf(array, "\n%s", outer_indent);
+      }
       array_printf(array, "}");
       break;
   }
@@ -464,7 +500,8 @@ char *json_stringify_internal(json_Item item, int be_terse) {
 // Public functions.
 
 char *json_parse(char *json_str, json_Item *item) {
-  char *input = json_str + strspn(json_str, " \t\r\n" );  // Skip leading whitespace.
+  // Skip leading whitespace.
+  char *input = json_str + strspn(json_str, " \t\r\n" );
   input = parse_value(item, input, json_str);
   if (input) {
     next_token(input);  // Skip last parsed char and trailing whitespace.

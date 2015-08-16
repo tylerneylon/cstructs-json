@@ -40,8 +40,11 @@ typedef struct {
 // On error, *item has type item_error with a message in value.string.
 char *json_parse(char *json_str, json_Item *item);
 
-char *json_stringify(json_Item item);         // Smaller output with no extra whitespace.
-char *json_pretty_stringify(json_Item item);  // Human-friendly output with more whitespace.
+// Terse output with no extra whitespace.
+char *json_stringify(json_Item item);
+
+// Human-friendly output with more whitespace.
+char *json_pretty_stringify(json_Item item);
 
 // Helper function to deallocate items.
 // release_item is designed for Array; free_item is designed for Map.
