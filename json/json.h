@@ -53,7 +53,8 @@ char *json_pretty_stringify(json_Item item);
 // This does NOT free the item itself; only its contents, recursively.
 void json_release_item(void *item);
 
-// Frees both the contents and the item itself; does strictly more than release_item.
+// Frees both the contents and the item itself; does strictly more than
+// release_item.
 void json_free_item(void *item);
 
 // map__Hash and equality functions for use in a Map keyed by strings.

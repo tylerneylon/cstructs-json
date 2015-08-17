@@ -30,7 +30,8 @@ static int json_item_has_format_(json_Item item, char **fmt) {
     (*fmt)++;
     for (int i = 0;; ++i) {
       if (**fmt == '\0') {
-        fprintf(stderr, "Error: json_item_has_format: format ended mid-array.\n");
+        fprintf(stderr,
+                "Error: json_item_has_format: format ended mid-array.\n");
         return false;
       }
       if (**fmt == ']') {
@@ -40,7 +41,8 @@ static int json_item_has_format_(json_Item item, char **fmt) {
       if (i >= item.value.array->count) return false;
       if (!json_item_has_format_(item_at(item, i), fmt)) return false;
       if (**fmt != ']' && **fmt != ',') {
-        char *err_fmt = "Error: json_item_has_format expected , or ] at tail: '%s'.\n";
+        char *err_fmt = "Error: json_item_has_format expected , or ] at tail: "
+                        "'%s'.\n";
         fprintf(stderr, err_fmt, *fmt);
         return false;
       }
@@ -48,13 +50,18 @@ static int json_item_has_format_(json_Item item, char **fmt) {
     }
   }
 
-  char          type_chars[] = {'\'',        't',       'f',        'n',       '#'};
-  json_ItemType item_types[] = {item_string, item_true, item_false, item_null, item_number};
+  struct { char type_char; json_ItemType item_type; } char_type_pairs[] = {
+    { '\'', item_string },
+    { 't' , item_true   },
+    { 'f' , item_false  },
+    { 'n' , item_null   },
+    { '#' , item_number }
+  };
 
-  for (int i = 0; i < array_size(type_chars); ++i) {
-    if (**fmt == type_chars[i]) {
+  for (int i = 0; i < array_size(char_type_pairs); ++i) {
+    if (**fmt == char_type_pairs[i].type_char ) {
       (*fmt)++;
-      return item.type == item_types[i];
+      return item.type == char_type_pairs[i].item_type;
     }
   }
 
