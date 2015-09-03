@@ -9,6 +9,8 @@
 // It's not designed to be compiled directly.
 //
 
+#pragma once
+
 #ifdef DEBUG
 
 int cjson_net_obj_allocs = 0;
